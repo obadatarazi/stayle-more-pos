@@ -1,0 +1,144 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy: #8b5560;
+  --color-navy-light: #a56d78;
+  --color-soft-blue: #fddfe0;
+  --color-app: #fff7f7;
+  --color-brand: #fddfe0;
+  --color-brand-deep: #8b5560;
+  --color-coral: #c97b84;
+  --color-coral-dark: #8b5560;
+  --color-coral-soft: #fff0f1;
+  --color-coral-pale: #fddfe0;
+  --color-coral-border: #f0c4c7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  max-width: 100%;
+  background: var(--color-app);
+  -webkit-tap-highlight-color: transparent;
+  /* Let one-finger vertical scroll win on Android/Samsung */
+  touch-action: pan-y;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  max-width: 100%;
+  overflow-x: clip;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: Inter, "Segoe UI", Tahoma, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+  touch-action: pan-y;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  touch-action: manipulation;
+}
+
+/* Nested sheets/lists still need vertical pan */
+.overflow-y-auto,
+.overflow-y-scroll {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+button {
+  cursor: pointer;
+}
+
+.metric-card {
+  box-shadow: 0 1px 2px rgb(139 85 96 / 0.04), 0 8px 24px rgb(139 85 96 / 0.05);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+@media (hover: hover) {
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgb(139 85 96 / 0.1);
+  }
+}
+
+.icon-blue {
+  background: #fddfe0;
+  color: #8b5560;
+}
+
+.icon-indigo {
+  background: #f6e8ea;
+  color: #9a6470;
+}
+
+.icon-orange {
+  background: #fff0e8;
+  color: #c56a28;
+}
+
+.icon-green {
+  background: #d9f5e7;
+  color: #168052;
+}
+
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.pb-mobile-nav {
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .pb-mobile-nav {
+    padding-bottom: 2rem;
+  }
+}
+
+.sheet-enter {
+  animation: sheet-up 220ms ease-out;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+::selection {
+  background: #fddfe0;
+  color: #8b5560;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #e8c5c8;
+  background-clip: padding-box;
+}

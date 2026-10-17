@@ -1,0 +1,21 @@
+{
+  "title": "Stayle & More",
+  "description": "نظام إدارة متجر Stayle & More — مبيعات، مخزون، ومصاريف",
+  "language": "ar",
+  "icons": {
+    "icon": "/favicon.png"
+  },
+  "openGraph": {
+    "image": "/logo.jpg"
+  },
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  },
+  "customScripts": {
+    "headEnd": "\n<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\" />\n<link rel=\"shortcut icon\" href=\"/favicon.png\" />\n"
+  }
+}
