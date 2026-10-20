@@ -38,7 +38,6 @@
     "yesDelete": "Yes, delete",
     "quickSale": "Quick sale",
     "logout": "Log out",
-    "cloudError": "Could not reach the server. Working from device data for now.",
     "available": "In stock",
     "outOfStock": "Out of stock",
     "sell": "Sell",
@@ -47,21 +46,58 @@
     "decreaseQty": "Decrease quantity",
     "increaseQty": "Increase quantity",
     "workspace": "Workspace",
-    "searchInventory": "Search inventory..."
+    "searchInventory": "Search inventory...",
+    "notNow": "Not now"
   },
   "sync": {
     "online": "Online — synced with server",
     "saving": "Saving to server...",
     "loading": "Loading from server...",
-    "error": "Server connection issue",
+    "error": "Sync issue — retrying automatically",
     "local": "Local mode only",
     "sharedHint": "Nadia and Farah see the same data on both devices.",
-    "envHint": "Add Supabase keys in .env to enable online sync.",
+    "envHint": "Set VITE_API_URL in .env to enable online sync.",
     "savingShort": "Saving...",
     "loadingShort": "Loading...",
     "offlineShort": "Offline",
     "localShort": "Local",
-    "onlineShort": "Online"
+    "onlineShort": "Online",
+    "pending": "{count} edits waiting to sync",
+    "offline": "Offline — saving on this device",
+    "offlineHint": "Sales and edits are kept on this device and sent automatically when the connection is back.",
+    "errorHint": "The server didn’t accept the last sync. It retries automatically, or tap Sync now.",
+    "pendingShort": "{count} pending",
+    "errorShort": "Sync issue",
+    "syncNow": "Sync now",
+    "lastSync": "Last sync {time}",
+    "neverSynced": "Not synced yet",
+    "sessionExpired": "Your session expired. Sign in again — edits not yet synced are kept on this device and will be sent after sign-in.",
+    "logoutPendingTitle": "Edits not synced yet",
+    "logoutPendingMessage": "{count} edits haven’t reached the server yet. They stay on this device and will be sent after the next sign-in. Sign out anyway?",
+    "enableNotifications": "Turn on notifications to know when you go offline, when edits finish syncing, or when a sale conflicts with the other device.",
+    "allowNotifications": "Allow",
+    "notify": {
+      "offlineTitle": "You’re offline",
+      "offlineBody": "Sales are being saved on this device.",
+      "offlinePendingBody": "{count} edits are saved on this device and will sync when you’re back online.",
+      "offlineInApp": "No connection — sales are saved on this device and will sync automatically.",
+      "backOnlineTitle": "Back online",
+      "backOnlineBody": "Connected to the server.",
+      "backOnlinePendingBody": "Syncing {count} edits…",
+      "syncedTitle": "Sync complete",
+      "syncedBody": "{count} edits synced to the server.",
+      "conflictTitle": "Sale cancelled",
+      "conflictBody": "“{name}” ran out — it was sold on the other device. Available: {available}.",
+      "rejectedBody": "The server rejected an edit; data was refreshed from the server.",
+      "stuckTitle": "Sync is stuck",
+      "stuckBody": "{count} edits can’t reach the server right now. Retrying automatically.",
+      "enabledTitle": "Notifications are on",
+      "enabledBody": "You’ll be alerted about sync and stock conflicts."
+    },
+    "emptyServerTitle": "The server has no data",
+    "emptyServerMessage": "The server is empty. Upload this device’s data ({products} products, {sales} sales) so both devices share it?",
+    "emptyServerDemoMessage": "The server is empty and this device only has the built-in sample products. Upload them anyway? Choose “Not now” if the real data is on the other device.",
+    "emptyServerUpload": "Upload"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -98,7 +134,8 @@
     "checking": "Checking...",
     "serverMissing": "Server is not configured. Sign-in is unavailable.",
     "invalid": "Invalid username or password",
-    "connectionError": "Could not reach the server. Check your connection and try again."
+    "connectionError": "Could not reach the server. Check your connection and try again.",
+    "offline": "No internet connection. The first sign-in needs a connection; after that the app works offline."
   },
   "dashboard": {
     "welcome": "Welcome to Stayle & More",
@@ -324,7 +361,14 @@
     "saveRate": "Save exchange rate",
     "confirmTitle": "Confirm rate change",
     "confirmMessage": "The rate will change to {rate}. Cost will update for {count} USD-cost products, and sale price will keep the same margin. Past sales are unchanged. Continue?",
-    "confirmYes": "Yes, update prices"
+    "confirmYes": "Yes, update prices",
+    "syncTitle": "Sync",
+    "pendingEdits": "Waiting to sync",
+    "lastSyncLabel": "Last sync",
+    "notifyTitle": "Notifications",
+    "notifyHint": "Alerts for offline mode, finished syncs and stock conflicts.",
+    "notifyDenied": "Notifications are blocked in browser settings. Allow them for this site to turn them on.",
+    "notifyUnsupported": "This browser doesn’t support notifications. On iPhone, add the app to the Home Screen first."
   },
   "changeCalc": {
     "title": "Change calculator",
@@ -398,22 +442,18 @@
     "belowCost": "Some new prices are below cost."
   },
   "notices": {
-    "deleteLocalOnly": "Deleted locally, but the server update failed.",
     "productUpdated": "Product “{name}” updated.",
-    "saveLocalOnly": "Saved locally, but upload to the server failed.",
     "quickSaleAdded": "“{name}” added to quick sale.",
     "quickSaleRemoved": "“{name}” removed from quick sale.",
-    "updateLocalOnly": "Updated locally, but upload to the server failed.",
     "expenseUpdated": "Expense updated.",
     "expenseAdded": "Expense added.",
     "expenseDeleted": "Expense deleted.",
     "exchangeSaved": "Exchange recorded.",
     "exchangeDeleted": "Exchange deleted.",
-    "saleCancelledStock": "Sale cancelled: stock ran out (maybe sold on another device).",
-    "deviceSaveCloudFail": "Saved on device, but upload to the server failed.",
+    "saleCancelledStock": "Sale of “{name}” cancelled: stock ran out on the other device (available: {available}).",
     "excelDownloaded": "Excel file downloaded.",
     "reportDownloaded": "Report for {month} downloaded.",
-    "importCloudOk": "Excel imported and uploaded to the server.",
+    "importCloudOk": "Excel imported. Uploading to the server…",
     "importLocalOk": "Excel data imported and saved.",
     "importFailed": "Import failed. Use a file exported from this system with the same Arabic sheet names.",
     "saleAdded": "Added {qty} × {name} to today’s sales.",
@@ -424,10 +464,10 @@
     "thisSale": "this sale",
     "pricesUpdated": "Updated prices for {count} products.",
     "rateSaved": "Exchange rate saved.",
-    "rateSaveLocalOnly": "Saved locally, but uploading the rate failed.",
     "skuExists": "SKU already exists. Try again.",
     "productAdded": "Product “{name}” added.",
-    "saleItemsCount": "{count} items"
+    "saleItemsCount": "{count} items",
+    "saleRejected": "The server rejected the sale of “{name}”, so it was removed."
   },
   "export": {
     "sku": "SKU",
@@ -501,5 +541,9 @@
     "otherExpense": "Other expense",
     "paidAmount": "Amount paid",
     "monthOrDate": "Month / date"
+  },
+  "pwa": {
+    "updateAvailable": "A new version of the app is ready.",
+    "reload": "Update now"
   }
 }

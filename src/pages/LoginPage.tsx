@@ -6,10 +6,17 @@ import Icon from "@/components/Icon";
 import { site, storageKeys } from "@/config/site";
 import { accounts } from "@/data/demo";
 import { useI18n } from "@/i18n/useI18n";
-import { apiLogin, isCloudEnabled, setApiToken } from "@/lib/api";
+import { NetworkError, apiLogin, isCloudEnabled, setApiToken } from "@/lib/api";
 import type { AuthUser } from "@/types/store";
 
-export default function LoginPage({ onSuccess }: { onSuccess: (user: AuthUser) => void }) {
+export default function LoginPage({
+  message = "",
+  onSuccess,
+}: {
+  /** Why the user landed here, e.g. the session expired while edits were waiting. */
+  message?: string;
+  onSuccess: (user: AuthUser) => void;
+}) {
   const { t } = useI18n();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -58,7 +65,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: (user: AuthUser) =
       onSuccess(user);
     } catch (err) {
       console.error(err);
-      setError(t("login.connectionError"));
+      setError(err instanceof NetworkError ? t("login.offline") : t("login.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -84,6 +91,13 @@ export default function LoginPage({ onSuccess }: { onSuccess: (user: AuthUser) =
               <p className="text-xs text-slate-500">{t("login.formHint")}</p>
             </div>
           </div>
+
+          {message && (
+            <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm font-medium text-amber-800">
+              <Icon name="warning" className="mt-0.5 size-4 shrink-0" />
+              {message}
+            </div>
+          )}
 
           <div className="space-y-4">
             <label className="block">

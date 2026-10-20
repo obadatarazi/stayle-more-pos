@@ -26,8 +26,9 @@ export default function QuickSaleSheet({
   const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
   const [draftTotals, setDraftTotals] = useState<Record<string, string>>({});
   const [draftCartTotal, setDraftCartTotal] = useState<string | null>(null);
+  // Start empty unless the sheet was opened for a specific product.
   const [cart, setCart] = useState<CartLine[]>(() => {
-    const product = products.find((item) => item.sku === initialSku) || products.find((item) => item.quickSale) || products[0];
+    const product = initialSku ? products.find((item) => item.sku === initialSku) : undefined;
     if (!product) return [];
     const remaining = product.initialStock - (soldBySku[product.sku] || 0);
     if (remaining < 1) return [];

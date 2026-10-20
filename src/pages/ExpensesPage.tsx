@@ -101,7 +101,7 @@ export default function ExpensesPage({
               <FieldLabel>{t("export.amount")}</FieldLabel>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">ل.س</span>
-                <input type="number" min="0.01" step="1" className={`${inputClass} pl-12`} placeholder="0" value={amount} onChange={(event) => setAmount(event.target.value)} required />
+                <input type="number" min="0.01" step="any" className={`${inputClass} pl-12`} placeholder="0" value={amount} onChange={(event) => setAmount(event.target.value)} required />
               </div>
             </label>
             <label className="block">
