@@ -216,6 +216,9 @@ function map_expense(array $row): array
         'categoryAr' => (string)$row['category_ar'],
         'amount' => (float)$row['amount'],
         'dueDate' => (string)$row['due_date'],
+        'note' => isset($row['note']) && $row['note'] !== null && $row['note'] !== ''
+            ? (string)$row['note']
+            : null,
     ];
 }
 
@@ -451,6 +454,7 @@ function upsert_expense(PDO $pdo, array $expense, bool $exitOnError = true): voi
     $categoryAr = trim((string)($expense['categoryAr'] ?? $expense['category_ar'] ?? $category));
     $amount = (float)($expense['amount'] ?? 0);
     $dueDate = trim((string)($expense['dueDate'] ?? $expense['due_date'] ?? ''));
+    $note = trim((string)($expense['note'] ?? ''));
     if ($id < 1 || $category === '' || $amount <= 0 || $dueDate === '') {
         if ($exitOnError) {
             json_error('Expense id, category, amount and dueDate are required', 422);
@@ -459,13 +463,14 @@ function upsert_expense(PDO $pdo, array $expense, bool $exitOnError = true): voi
     }
 
     $stmt = $pdo->prepare(
-        'INSERT INTO expenses (id, category, category_ar, amount, due_date)
-         VALUES (:id, :category, :category_ar, :amount, :due_date)
+        'INSERT INTO expenses (id, category, category_ar, amount, due_date, note)
+         VALUES (:id, :category, :category_ar, :amount, :due_date, :note)
          ON DUPLICATE KEY UPDATE
            category = VALUES(category),
            category_ar = VALUES(category_ar),
            amount = VALUES(amount),
-           due_date = VALUES(due_date)'
+           due_date = VALUES(due_date),
+           note = VALUES(note)'
     );
     $stmt->execute([
         ':id' => $id,
@@ -473,6 +478,7 @@ function upsert_expense(PDO $pdo, array $expense, bool $exitOnError = true): voi
         ':category_ar' => $categoryAr ?: $category,
         ':amount' => $amount,
         ':due_date' => $dueDate,
+        ':note' => $note !== '' ? mb_substr($note, 0, 255) : null,
     ]);
 }
 

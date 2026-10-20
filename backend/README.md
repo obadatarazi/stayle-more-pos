@@ -48,3 +48,4 @@ VITE_API_URL=https://style.lecadeaupk.com/api
 5. `sql/migrate_usd_rate.sql`
 6. `sql/migrate_cost_usd.sql`
 7. `sql/migrate_exchanges.sql`
+8. `sql/migrate_expense_note.sql`

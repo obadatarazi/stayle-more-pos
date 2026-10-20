@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   category_ar VARCHAR(120) NOT NULL,
   amount DECIMAL(14,2) NOT NULL,
   due_date DATE NOT NULL,
+  note VARCHAR(255) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_expenses_due (due_date),

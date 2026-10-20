@@ -48,6 +48,7 @@ type Expense = {
   categoryAr: string;
   amount: number;
   dueDate: string;
+  note?: string;
 };
 
 // Currency exchange log (SYP <-> USD); kept out of all reports.
@@ -90,7 +91,8 @@ type IconName =
   | "cash"
   | "chart"
   | "settings"
-  | "exchange";
+  | "exchange"
+  | "filter";
 
 type StoreSettings = {
   usdRate: number;
@@ -246,6 +248,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   cart: <><circle cx="9" cy="20" r="1.5" /><circle cx="17" cy="20" r="1.5" /><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.4a2 2 0 0 0 2-1.5L21 8H7" /></>,
   cash: <><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M7 12h.01M17 12h.01" /></>,
   chart: <><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /><path d="m14 10 3-3 3 2" /></>,
+  filter: <><path d="M4 5h16l-6 7v5l-4 2v-7Z" /></>,
 };
 
 function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {
@@ -300,7 +303,7 @@ const salePrice = (sale: Sale, product?: Product) =>
 const saleCost = (sale: Sale, product?: Product) =>
   sale.unitCost ?? product?.cost ?? 0;
 
-const defaultSettings: StoreSettings = { usdRate: 0 };
+const defaultSettings: StoreSettings = { usdRate: 140 };
 
 const saleCostUsd = (sale: Sale, product?: Product) =>
   sale.unitCostUsd ?? product?.costUsd ?? 0;
@@ -704,6 +707,7 @@ function App() {
   const reloadTimer = useRef<number | null>(null);
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState(todayISO());
+  const [expenseNote, setExpenseNote] = useState("");
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -1128,6 +1132,7 @@ function App() {
     setExpenseCategory("إيجار المحل");
     setExpenseAmount("");
     setExpenseDate(todayISO());
+    setExpenseNote("");
   };
 
   const startEditExpense = (expense: Expense) => {
@@ -1135,6 +1140,7 @@ function App() {
     setExpenseCategory(expense.categoryAr || expense.category);
     setExpenseAmount(String(expense.amount));
     setExpenseDate(expense.dueDate);
+    setExpenseNote(expense.note || "");
     setActiveTab("expenses");
   };
 
@@ -1142,12 +1148,14 @@ function App() {
     event.preventDefault();
     const amount = Number(expenseAmount);
     if (!amount || amount <= 0) return;
+    const note = expenseNote.trim();
     const expense: Expense = {
       id: editingExpenseId ?? Date.now(),
       category: expenseCategory,
       categoryAr: expenseCategory,
       amount,
       dueDate: expenseDate,
+      note: note || undefined,
     };
     setExpenses((current) => {
       if (editingExpenseId != null) {
@@ -1330,6 +1338,7 @@ function App() {
       "بند المصروف": expense.categoryAr,
       "المبلغ": expense.amount,
       "تاريخ الاستحقاق": expense.dueDate,
+      "ملاحظة": expense.note || "",
     }));
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(productRows), "دليل المنتجات");
@@ -1427,6 +1436,7 @@ function App() {
       "البند": expense.categoryAr,
       "المبلغ": conv(expense.amount),
       "التاريخ": expense.dueDate,
+      "ملاحظة": expense.note || "",
       "نوع": isRentExpense(expense) ? "إيجار" : isStockPurchase(expense) ? "شراء بضاعة (لا يُخصم من الربح)" : "مصروف",
     }));
 
@@ -1517,13 +1527,17 @@ function App() {
             soldByName: matched?.displayName || soldByName || undefined,
           };
         }).filter((sale) => sale.sku && sale.quantity > 0);
-        const importedExpenses: Expense[] = expenseRows.map((row, index) => ({
-          id: Date.now() + index,
-          category: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
-          categoryAr: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
-          amount: Number(cellValue(row, ["المبلغ", "المبلغ المدفوع"]) || 0),
-          dueDate: excelDate(cellValue(row, ["تاريخ الاستحقاق", "الشهر / التاريخ"])),
-        })).filter((expense) => expense.amount > 0);
+        const importedExpenses: Expense[] = expenseRows.map((row, index) => {
+          const note = String(cellValue(row, ["ملاحظة", "ملاحظات"]) || "").trim();
+          return {
+            id: Date.now() + index,
+            category: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
+            categoryAr: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
+            amount: Number(cellValue(row, ["المبلغ", "المبلغ المدفوع"]) || 0),
+            dueDate: excelDate(cellValue(row, ["تاريخ الاستحقاق", "الشهر / التاريخ"])),
+            note: note || undefined,
+          };
+        }).filter((expense) => expense.amount > 0);
 
         if (!importedProducts.length) throw new Error("empty products");
         setProducts(importedProducts);
@@ -1811,6 +1825,8 @@ function App() {
               setAmount={setExpenseAmount}
               date={expenseDate}
               setDate={setExpenseDate}
+              note={expenseNote}
+              setNote={setExpenseNote}
               editingId={editingExpenseId}
               onSubmit={saveExpense}
               onEdit={startEditExpense}
@@ -2130,6 +2146,26 @@ function Dashboard({
   );
 }
 
+type StockFilter = "all" | "available" | "low" | "out" | "quick";
+type ProductSort = "newest" | "oldest" | "name" | "priceHigh" | "priceLow" | "stockLow";
+
+const stockFilterOptions: { id: StockFilter; label: string; hint: string }[] = [
+  { id: "all", label: "كل المنتجات", hint: "عرض الكل بدون تقييد" },
+  { id: "available", label: "متوفر", hint: "فيه كمية للبيع" },
+  { id: "low", label: "مخزون قليل", hint: "يحتاج إعادة طلب" },
+  { id: "out", label: "نفد", hint: "الكمية صفر" },
+  { id: "quick", label: "بيع سريع", hint: "المفعّل للبيع السريع" },
+];
+
+const productSortOptions: { id: ProductSort; label: string; hint: string }[] = [
+  { id: "newest", label: "الأحدث", hint: "آخر ما أضفته أولاً" },
+  { id: "oldest", label: "الأقدم", hint: "أول ما أضفته أولاً" },
+  { id: "name", label: "حسب الاسم", hint: "ترتيب أبجدي" },
+  { id: "priceHigh", label: "أعلى سعر", hint: "الأغلى أولاً" },
+  { id: "priceLow", label: "أقل سعر", hint: "الأرخص أولاً" },
+  { id: "stockLow", label: "أقل كمية", hint: "الأقرب للنفاد أولاً" },
+];
+
 function ProductsTable({
   products,
   soldBySku,
@@ -2153,9 +2189,16 @@ function ProductsTable({
 }) {
   const [query, setQuery] = useState(initialSearch);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  const [sortBy, setSortBy] = useState<ProductSort>("newest");
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const categories = useMemo(() => allCategories(products), [products]);
+  const productIndex = useMemo(
+    () => new Map(products.map((product, index) => [product.sku, index])),
+    [products],
+  );
 
   useEffect(() => {
     setQuery(initialSearch);
@@ -2163,16 +2206,51 @@ function ProductsTable({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return products.filter(
-      (product) =>
-        (categoryFilter === "all" || product.category === categoryFilter) &&
-        (!q ||
-          [product.nameAr, product.name, product.category, product.sku]
-            .join(" ")
-            .toLowerCase()
-            .includes(q)),
-    );
-  }, [products, query, categoryFilter]);
+    const list = products.filter((product) => {
+      if (categoryFilter !== "all" && product.category !== categoryFilter) return false;
+      if (
+        q &&
+        ![product.nameAr, product.name, product.category, product.sku]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      ) {
+        return false;
+      }
+      const remaining = product.initialStock - (soldBySku[product.sku] || 0);
+      if (stockFilter === "available" && remaining < 1) return false;
+      if (stockFilter === "low" && remaining > product.reorderLevel) return false;
+      if (stockFilter === "out" && remaining > 0) return false;
+      if (stockFilter === "quick" && !product.quickSale) return false;
+      return true;
+    });
+
+    const remainingOf = (product: Product) => product.initialStock - (soldBySku[product.sku] || 0);
+    const indexOf = (sku: string) => productIndex.get(sku) ?? 0;
+
+    return [...list].sort((a, b) => {
+      if (sortBy === "newest") return indexOf(b.sku) - indexOf(a.sku);
+      if (sortBy === "oldest") return indexOf(a.sku) - indexOf(b.sku);
+      if (sortBy === "name") return a.nameAr.localeCompare(b.nameAr, "ar");
+      if (sortBy === "priceHigh") return b.price - a.price;
+      if (sortBy === "priceLow") return a.price - b.price;
+      return remainingOf(a) - remainingOf(b);
+    });
+  }, [products, query, categoryFilter, stockFilter, sortBy, soldBySku, productIndex]);
+
+  const activeFilterCount =
+    (categoryFilter !== "all" ? 1 : 0) +
+    (stockFilter !== "all" ? 1 : 0) +
+    (sortBy !== "newest" ? 1 : 0);
+
+  const stockFilterLabel = stockFilterOptions.find((item) => item.id === stockFilter)?.label || "كل المنتجات";
+  const sortLabel = productSortOptions.find((item) => item.id === sortBy)?.label || "الأحدث";
+
+  const resetFilters = () => {
+    setCategoryFilter("all");
+    setStockFilter("all");
+    setSortBy("newest");
+  };
 
   const allShownSelected = filtered.length > 0 && filtered.every((product) => selected.has(product.sku));
 
@@ -2211,7 +2289,7 @@ function ProductsTable({
         }
       />
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-3 md:flex-row md:items-center md:justify-between md:p-4">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-3 md:flex-row md:flex-wrap md:items-center md:justify-between md:p-4">
           <div className="relative w-full md:w-auto">
             <Icon name="search" className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -2221,15 +2299,60 @@ function ProductsTable({
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
-          <select
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-base outline-none focus:border-navy focus:bg-white md:w-48 md:py-2.5 md:text-sm"
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value)}
-            aria-label="تصفية حسب الفئة"
+          <div className="hidden gap-2 md:flex md:flex-wrap">
+            <select
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-navy focus:bg-white"
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              aria-label="تصفية حسب الفئة"
+            >
+              <option value="all">كل الفئات</option>
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+            <select
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-navy focus:bg-white"
+              value={stockFilter}
+              onChange={(event) => setStockFilter(event.target.value as StockFilter)}
+              aria-label="تصفية حسب الحالة"
+            >
+              {stockFilterOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            <select
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-navy focus:bg-white"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as ProductSort)}
+              aria-label="ترتيب المنتجات"
+            >
+              {productSortOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-right md:hidden"
           >
-            <option value="all">كل الفئات</option>
-            {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-          </select>
+            <span className="flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-lg bg-white text-navy shadow-sm">
+                <Icon name="filter" className="size-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-bold text-slate-800">تصفية وترتيب</span>
+                <span className="mt-0.5 block text-xs text-slate-500">
+                  {stockFilterLabel} · {sortLabel}
+                  {categoryFilter !== "all" ? ` · ${categoryFilter}` : ""}
+                </span>
+              </span>
+            </span>
+            {activeFilterCount > 0 ? (
+              <span className="grid size-7 place-items-center rounded-full bg-navy text-xs font-bold text-white">{activeFilterCount}</span>
+            ) : (
+              <Icon name="chevron" className="size-5 rotate-180 text-slate-400" />
+            )}
+          </button>
           <div className="flex items-center justify-between gap-3 md:mr-auto">
             <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
               <input type="checkbox" className="size-4 accent-navy" checked={allShownSelected} onChange={toggleAllShown} disabled={!filtered.length} />
@@ -2240,6 +2363,22 @@ function ProductsTable({
             </p>
           </div>
         </div>
+        {activeFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-brand/40 px-3 py-2.5 md:px-4">
+            {categoryFilter !== "all" && (
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-navy">{categoryFilter}</span>
+            )}
+            {stockFilter !== "all" && (
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-navy">{stockFilterLabel}</span>
+            )}
+            {sortBy !== "newest" && (
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-navy">{sortLabel}</span>
+            )}
+            <button type="button" onClick={resetFilters} className="mr-auto text-xs font-bold text-navy underline-offset-2 hover:underline">
+              مسح الكل
+            </button>
+          </div>
+        )}
 
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-coral-border bg-coral-soft px-3 py-2.5 md:px-4">
@@ -2404,6 +2543,128 @@ function ProductsTable({
             setSelected(new Set());
           }}
         />
+      )}
+
+      <button
+        type="button"
+        onClick={() => setFilterSheetOpen(true)}
+        className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-4 z-30 flex items-center gap-2 rounded-full bg-navy px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-navy/35 active:scale-95 md:hidden"
+        aria-label="تصفية المنتجات"
+      >
+        <Icon name="filter" className="size-5" />
+        تصفية
+        {activeFilterCount > 0 && (
+          <span className="grid size-6 place-items-center rounded-full bg-white text-xs font-bold text-navy">
+            {activeFilterCount}
+          </span>
+        )}
+      </button>
+
+      {filterSheetOpen && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm md:hidden">
+          <button type="button" className="absolute inset-0" onClick={() => setFilterSheetOpen(false)} aria-label="إغلاق" />
+          <div className="sheet-enter relative z-10 flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl safe-bottom">
+            <div className="shrink-0 px-5 pt-3 pb-2">
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">تصفية المنتجات</h2>
+                  <p className="mt-1 text-sm text-slate-500">اختر ماذا تريد أن ترى بسهولة</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFilterSheetOpen(false)}
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-500"
+                  aria-label="إغلاق"
+                >
+                  <Icon name="close" className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-4">
+              <section>
+                <h3 className="mb-2 text-sm font-bold text-slate-800">الحالة</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {stockFilterOptions.map((option) => {
+                    const active = stockFilter === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setStockFilter(option.id)}
+                        className={`rounded-2xl border p-3 text-right transition ${
+                          active ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">{option.label}</span>
+                        <span className={`mt-1 block text-[11px] ${active ? "text-navy/70" : "text-slate-400"}`}>{option.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-sm font-bold text-slate-800">الترتيب</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {productSortOptions.map((option) => {
+                    const active = sortBy === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setSortBy(option.id)}
+                        className={`rounded-2xl border p-3 text-right transition ${
+                          active ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">{option.label}</span>
+                        <span className={`mt-1 block text-[11px] ${active ? "text-navy/70" : "text-slate-400"}`}>{option.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-sm font-bold text-slate-800">الفئة</h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter("all")}
+                    className={`rounded-full px-3.5 py-2.5 text-sm font-bold ${
+                      categoryFilter === "all" ? "bg-navy text-white" : "border border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    الكل
+                  </button>
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setCategoryFilter(category)}
+                      className={`rounded-full px-3.5 py-2.5 text-sm font-bold ${
+                        categoryFilter === category ? "bg-navy text-white" : "border border-slate-200 bg-white text-slate-600"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="shrink-0 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white p-4">
+              <Button type="button" variant="secondary" className="min-h-12" onClick={resetFilters}>
+                مسح الكل
+              </Button>
+              <Button type="button" className="min-h-12" onClick={() => setFilterSheetOpen(false)}>
+                <Icon name="check" className="size-4" /> عرض النتائج ({filtered.length})
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -3888,6 +4149,8 @@ function ExpensesPage({
   setAmount,
   date,
   setDate,
+  note,
+  setNote,
   editingId,
   onSubmit,
   onEdit,
@@ -3901,6 +4164,8 @@ function ExpensesPage({
   setAmount: (amount: string) => void;
   date: string;
   setDate: (date: string) => void;
+  note: string;
+  setNote: (note: string) => void;
   editingId: number | null;
   onSubmit: (event: FormEvent) => void;
   onEdit: (expense: Expense) => void;
@@ -3943,6 +4208,16 @@ function ExpensesPage({
               <FieldLabel>تاريخ الاستحقاق</FieldLabel>
               <input type="date" className={inputClass} value={date} onChange={(event) => setDate(event.target.value)} required />
             </label>
+            <label className="block">
+              <FieldLabel>ملاحظة</FieldLabel>
+              <input
+                className={inputClass}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="اختياري — مثال: فاتورة تشرين / دفعت لناديا"
+                maxLength={255}
+              />
+            </label>
             <div className={`grid gap-2 ${isEditing ? "grid-cols-2" : ""}`}>
               {isEditing && (
                 <Button type="button" variant="secondary" className="min-h-12" onClick={onCancelEdit}>
@@ -3980,6 +4255,7 @@ function ExpensesPage({
                     {shortDate(expense.dueDate)}
                     {isRentExpense(expense) && " · إيجار"}
                     {isStockPurchase(expense) && " · لا يُخصم من صافي الربح"}
+                    {expense.note ? ` · ${expense.note}` : ""}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900">{money(expense.amount)}</p>

@@ -32,6 +32,7 @@ create table if not exists expenses (
   category_ar text not null,
   amount numeric not null check (amount > 0),
   due_date date not null,
+  note text,
   created_at timestamptz not null default now()
 );
 

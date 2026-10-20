@@ -44,6 +44,7 @@ export type CloudExpense = {
   categoryAr: string;
   amount: number;
   dueDate: string;
+  note?: string;
 };
 
 export type CloudSettings = {
@@ -127,6 +128,7 @@ const mapExpense = (row: Record<string, unknown>): CloudExpense => ({
   categoryAr: String(row.categoryAr || row.category_ar || ""),
   amount: Number(row.amount || 0),
   dueDate: String(row.dueDate || row.due_date || ""),
+  note: row.note ? String(row.note) : undefined,
 });
 
 const mapExchange = (row: Record<string, unknown>): CloudExchange => ({
