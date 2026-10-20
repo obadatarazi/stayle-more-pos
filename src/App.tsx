@@ -2,8 +2,10 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "re
 import BrandLogo from "@/components/BrandLogo";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/Icon";
+import Banner from "@/components/Banner";
 import ProductModal from "@/components/ProductModal";
 import QuickSaleSheet from "@/components/QuickSaleSheet";
+import { SyncBadge, SyncSidebarCard } from "@/components/SyncStatus";
 import { defaultSettings, storageKeys } from "@/config/site";
 import { accounts, allCategories, initialExpenses, initialProducts, initialSales, readAuth } from "@/data/demo";
 import { mobileNavItems, navItems, tabFromHash } from "@/data/nav";
@@ -25,20 +27,13 @@ import {
   todayISO,
   usd,
 } from "@/lib/format";
+import { useCloudSync, type NoticeTone, type SyncStatus } from "@/hooks/useCloudSync";
 import { isCloudEnabled, setApiToken } from "@/lib/api";
-import {
-  deleteCloudSale,
-  fetchCloudStore,
-  insertCloudExpense,
-  deleteCloudExpense,
-  insertCloudSale,
-  replaceCloudStore,
-  subscribeCloudStore,
-  upsertCloudProduct,
-  saveCloudSettings,
-  insertCloudExchange,
-  deleteCloudExchange,
-} from "@/lib/cloudStore";
+import type { CloudSale, CloudStore } from "@/lib/cloudStore";
+import { createRecordId } from "@/lib/ids";
+import { enableNotifications, disableNotifications, useNotificationState } from "@/lib/notifications";
+import { applyUpdate, useUpdateAvailable } from "@/lib/pwa";
+import { enqueue, pendingCount } from "@/lib/syncOutbox";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ProductsPage from "@/pages/ProductsPage";
@@ -120,23 +115,32 @@ export default function App() {
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [reportMonth, setReportMonth] = useState(currentMonthKey);
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    // Start empty; cloud sync is the source of truth after login.
     try {
-      localStorage.removeItem(storageKeys.expenses);
+      const saved = localStorage.getItem(storageKeys.expenses);
+      return saved ? (JSON.parse(saved) as Expense[]) : initialExpenses;
     } catch {
-      // ignore
+      return initialExpenses;
     }
-    return initialExpenses;
   });
   const [selectedSku, setSelectedSku] = useState(initialProducts[0].sku);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(initialProducts[0].price);
   const [saleDate, setSaleDate] = useState(todayISO);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [emptyServerPrompt, setEmptyServerPrompt] = useState(false);
+  // "Not now" holds for this session; the question comes back after the next app start.
+  const emptyServerDismissed = useRef(false);
+  const [loginMessage, setLoginMessage] = useState("");
+  const notificationState = useNotificationState();
+  const updateAvailable = useUpdateAvailable();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
+  // Product the user chose to sell (e.g. "Sell" on a product card); a plain new sale starts with an empty cart.
+  const [quickSaleSku, setQuickSaleSku] = useState<string | undefined>(undefined);
   const [productModal, setProductModal] = useState<"add" | Product | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; label: string } | null>(null);
   const [exchanges, setExchanges] = useState<Exchange[]>(() => {
@@ -147,12 +151,7 @@ export default function App() {
       return [];
     }
   });
-  const [syncStatus, setSyncStatus] = useState<"local" | "loading" | "online" | "saving" | "error">(
-    isCloudEnabled ? "loading" : "local",
-  );
   const [expenseCategory, setExpenseCategory] = useState("إيجار المحل");
-  const cloudReady = useRef(false);
-  const reloadTimer = useRef<number | null>(null);
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState(todayISO());
   const [expenseNote, setExpenseNote] = useState("");
@@ -161,91 +160,71 @@ export default function App() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    localStorage.setItem(storageKeys.products, JSON.stringify(products));
-    localStorage.setItem(storageKeys.sales, JSON.stringify(sales));
-    localStorage.setItem(storageKeys.expenses, JSON.stringify(expenses));
-    localStorage.setItem(storageKeys.settings, JSON.stringify(settings));
-    localStorage.setItem(storageKeys.exchanges, JSON.stringify(exchanges));
+    try {
+      localStorage.setItem(storageKeys.products, JSON.stringify(products));
+      localStorage.setItem(storageKeys.sales, JSON.stringify(sales));
+      localStorage.setItem(storageKeys.expenses, JSON.stringify(expenses));
+      localStorage.setItem(storageKeys.settings, JSON.stringify(settings));
+      localStorage.setItem(storageKeys.exchanges, JSON.stringify(exchanges));
+    } catch (error) {
+      console.error("Local save failed", error);
+    }
   }, [products, sales, expenses, settings, exchanges]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !isCloudEnabled) {
-      setSyncStatus(isCloudEnabled ? "loading" : "local");
-      return;
-    }
+  const showNotice = (message: string, tone: NoticeTone = "success") => {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    setNotice({ message, tone });
+    noticeTimer.current = window.setTimeout(() => setNotice(null), tone === "warning" ? 6000 : 3500);
+  };
 
-    let cancelled = false;
+  // Queued edits stay on the device and are sent after the next sign-in.
+  const logout = (message = "") => {
+    localStorage.removeItem(storageKeys.auth);
+    sessionStorage.removeItem(storageKeys.auth);
+    setApiToken(null);
+    setConfirmLogout(false);
+    setLoginMessage(message);
+    setAuthUser(null);
+  };
 
-    const loadCloud = async () => {
-      try {
-        setSyncStatus("loading");
-        const cloud = await fetchCloudStore();
-        if (cancelled) return;
+  const requestLogout = () => {
+    if (pendingCount() > 0) setConfirmLogout(true);
+    else logout();
+  };
 
-        if (!cloud.products.length && !cloud.sales.length && !cloud.expenses.length) {
-          const localProducts = products.length ? products : initialProducts;
-          const localSales = sales;
-          const localExpenses = expenses;
-          await replaceCloudStore({
-            products: localProducts,
-            sales: localSales,
-            expenses: localExpenses,
-            settings,
-            exchanges,
-          });
-          if (cancelled) return;
-          setProducts(localProducts);
-          setSales(localSales);
-          setExpenses(localExpenses);
-          if (localProducts[0]) setSelectedSku(localProducts[0].sku);
-        } else {
-          setProducts(cloud.products);
-          setSales(cloud.sales);
-          setExpenses(cloud.expenses);
-          if (cloud.settings.usdRate > 0) setSettings(cloud.settings);
-          setExchanges(cloud.exchanges ?? []);
-          if (cloud.products[0]) setSelectedSku(cloud.products[0].sku);
-        }
-        cloudReady.current = true;
-        setSyncStatus("online");
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setSyncStatus("error");
-          setNotice(t("common.cloudError"));
-          window.setTimeout(() => setNotice(""), 4000);
-        }
-      }
-    };
+  const productName = (sku: string) => products.find((item) => item.sku === sku)?.nameAr || sku;
 
-    void loadCloud();
-
-    const unsubscribe = subscribeCloudStore(() => {
-      if (!cloudReady.current) return;
-      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
-      reloadTimer.current = window.setTimeout(async () => {
-        try {
-          const cloud = await fetchCloudStore();
-          setProducts(cloud.products);
-          setSales(cloud.sales);
-          setExpenses(cloud.expenses);
-          if (cloud.settings.usdRate > 0) setSettings(cloud.settings);
-          setExchanges(cloud.exchanges ?? []);
-          setSyncStatus("online");
-        } catch (error) {
-          console.error(error);
-          setSyncStatus("error");
-        }
-      }, 400);
-    });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-      if (reloadTimer.current) window.clearTimeout(reloadTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  const sync = useCloudSync({
+    enabled: isAuthenticated,
+    applyCloud: (cloud: CloudStore) => {
+      setProducts(cloud.products);
+      setSales(cloud.sales);
+      setExpenses(cloud.expenses);
+      if (cloud.settings.usdRate > 0) setSettings(cloud.settings);
+      setExchanges(cloud.exchanges ?? []);
+      setSelectedSku((current) =>
+        cloud.products.some((item) => item.sku === current) ? current : (cloud.products[0]?.sku ?? current),
+      );
+    },
+    onEmptyServer: () => {
+      if (products.length && !emptyServerDismissed.current) setEmptyServerPrompt(true);
+    },
+    // Server refused a sale (usually another device sold the last pieces first): undo it here too.
+    onSaleRejected: (sale: CloudSale, reason, available) => {
+      setSales((current) => current.filter((item) => item.id !== sale.id));
+      const name = productName(sale.sku);
+      showNotice(
+        reason === "stock"
+          ? t("notices.saleCancelledStock", { name, available: available ?? 0 })
+          : t("notices.saleRejected", { name }),
+        "warning",
+      );
+      return name;
+    },
+    onAuthExpired: () => logout(t("sync.sessionExpired", { count: pendingCount() })),
+    onNotice: showNotice,
+  });
+  const syncStatus: SyncStatus = sync.status;
 
   useEffect(() => {
     const product = products.find((item) => item.sku === selectedSku) || products[0];
@@ -302,26 +281,22 @@ export default function App() {
     return { revenue, grossProfit, fixedExpenses, netProfit: grossProfit - fixedExpenses };
   }, [sales, expenses, products]);
 
-  const showNotice = (message: string) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 3500);
-  };
-
-  const logout = () => {
-    localStorage.removeItem(storageKeys.auth);
-    sessionStorage.removeItem(storageKeys.auth);
-    setApiToken(null);
-    setAuthUser(null);
-  };
-
   if (!isAuthenticated || !authUser) {
-    return <LoginPage onSuccess={setAuthUser} />;
+    return (
+      <LoginPage
+        message={loginMessage}
+        onSuccess={(user) => {
+          setLoginMessage("");
+          setAuthUser(user);
+        }}
+      />
+    );
   }
 
   const recordSale = () => {
     if (!selectedProduct || quantity < 1 || quantity > selectedRemaining || unitPrice < 0) return false;
     const sale: Sale = {
-      id: Date.now(),
+      id: createRecordId(),
       date: saleDate,
       sku: selectedSku,
       quantity,
@@ -335,19 +310,13 @@ export default function App() {
     showNotice(t("notices.saleAdded", { qty: quantity, name: selectedProduct.nameAr }));
     setQuantity(1);
     setUnitPrice(selectedProduct.price);
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void insertCloudSale(sale)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => rollbackSales([sale], error));
-    }
+    enqueue({ type: "sale.upsert", sale });
     return true;
   };
 
   const checkoutCart = (lines: CartLine[]) => {
     if (!lines.length) return false;
 
-    const stamped = Date.now();
     const newSales: Sale[] = [];
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
@@ -359,11 +328,11 @@ export default function App() {
         .filter((item) => item.sku === line.sku)
         .reduce((sum, item) => sum + item.quantity, 0);
       if (line.quantity < 1 || line.quantity > remaining - alreadyInCart || line.unitPrice < 0) {
-        showNotice(t("notices.qtyUnavailable", { name: product.nameAr }));
+        showNotice(t("notices.qtyUnavailable", { name: product.nameAr }), "warning");
         return false;
       }
       newSales.push({
-        id: stamped + index,
+        id: createRecordId(),
         date: saleDate || todayISO(),
         sku: line.sku,
         quantity: line.quantity,
@@ -383,20 +352,7 @@ export default function App() {
       : t("notices.saleItemsCount", { count: newSales.length });
     showNotice(t("notices.saleLogged", { items: itemsLabel }));
     setQuantity(1);
-
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void Promise.all(
-        newSales.map((sale) => insertCloudSale(sale).then(() => null, (error: unknown) => ({ sale, error }))),
-      ).then((results) => {
-        const failed = results.filter((result): result is { sale: Sale; error: unknown } => result !== null);
-        if (!failed.length) {
-          setSyncStatus("online");
-          return;
-        }
-        rollbackSales(failed.map((result) => result.sale), failed[0].error);
-      });
-    }
+    enqueue(...newSales.map((sale) => ({ type: "sale.upsert" as const, sale })));
     return true;
   };
 
@@ -408,7 +364,7 @@ export default function App() {
   const openQuickSale = (sku?: string) => {
     const requested = sku ? products.find((item) => item.sku === sku) : undefined;
     if (requested && requested.initialStock - (soldBySku[requested.sku] || 0) < 1) {
-      showNotice(t("notices.stockEmpty", { name: requested.nameAr }));
+      showNotice(t("notices.stockEmpty", { name: requested.nameAr }), "warning");
       return;
     }
     const preferred =
@@ -423,6 +379,7 @@ export default function App() {
     }
     setSaleDate(todayISO());
     setQuantity(1);
+    setQuickSaleSku(requested?.sku);
     setQuickSaleOpen(true);
   };
 
@@ -430,16 +387,7 @@ export default function App() {
     setSales((current) => current.filter((sale) => sale.id !== id));
     setConfirmDelete(null);
     showNotice(t("notices.saleDeleted"));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void deleteCloudSale(id)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.deleteLocalOnly"));
-        });
-    }
+    enqueue({ type: "sale.delete", id });
   };
 
   const requestDeleteSale = (id: number) => {
@@ -482,9 +430,7 @@ export default function App() {
     if (!frozenSales.length) return;
     const frozenById = new Map(frozenSales.map((sale) => [sale.id, sale]));
     setSales((current) => current.map((sale) => frozenById.get(sale.id) ?? sale));
-    if (isCloudEnabled) {
-      void Promise.all(frozenSales.map((sale) => insertCloudSale(sale))).catch((error) => console.error(error));
-    }
+    enqueue(...frozenSales.map((sale) => ({ type: "sale.upsert" as const, sale })));
   };
 
   const bulkUpdateProducts = (updated: Product[]) => {
@@ -493,16 +439,7 @@ export default function App() {
     const updatedBySku = new Map(updated.map((item) => [item.sku, item]));
     setProducts((current) => current.map((item) => updatedBySku.get(item.sku) ?? item));
     showNotice(t("notices.pricesUpdated", { count: updated.length }));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void Promise.all(updated.map((product) => upsertCloudProduct(product)))
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.updateLocalOnly"));
-        });
-    }
+    enqueue(...updated.map((product) => ({ type: "product.upsert" as const, product })));
   };
 
   const changeUsdRate = (usdRate: number) => {
@@ -515,21 +452,15 @@ export default function App() {
         return { ...product, usdRate, cost, price };
       });
     setSettings((current) => ({ ...current, usdRate }));
+    enqueue({ type: "settings.save", settings: { ...settings, usdRate } });
     if (repriced.length) bulkUpdateProducts(repriced);
     else showNotice(t("notices.rateSaved"));
-    if (isCloudEnabled) {
-      void saveCloudSettings({ ...settings, usdRate }).catch((error) => {
-        console.error(error);
-        setSyncStatus("error");
-        showNotice(t("notices.rateSaveLocalOnly"));
-      });
-    }
   };
 
   const saveProduct = (product: Product, mode: "add" | "edit") => {
     if (mode === "add") {
       if (products.some((item) => item.sku === product.sku)) {
-        showNotice(t("notices.skuExists"));
+        showNotice(t("notices.skuExists"), "warning");
         return;
       }
       setProducts((current) => [...current, product]);
@@ -541,16 +472,7 @@ export default function App() {
       showNotice(t("notices.productUpdated", { name: product.nameAr }));
     }
     setProductModal(null);
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void upsertCloudProduct(product)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.saveLocalOnly"));
-        });
-    }
+    enqueue({ type: "product.upsert", product });
   };
 
   const toggleQuickSale = (sku: string) => {
@@ -563,16 +485,7 @@ export default function App() {
         ? t("notices.quickSaleAdded", { name: next.nameAr })
         : t("notices.quickSaleRemoved", { name: next.nameAr }),
     );
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void upsertCloudProduct(next)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.updateLocalOnly"));
-        });
-    }
+    enqueue({ type: "product.upsert", product: next });
   };
 
   const resetExpenseForm = () => {
@@ -598,7 +511,7 @@ export default function App() {
     if (!amount || amount <= 0) return;
     const note = expenseNote.trim();
     const expense: Expense = {
-      id: editingExpenseId ?? Date.now(),
+      id: editingExpenseId ?? createRecordId(),
       category: expenseCategory,
       categoryAr: expenseCategory,
       amount,
@@ -614,87 +527,44 @@ export default function App() {
     const wasEdit = editingExpenseId != null;
     resetExpenseForm();
     showNotice(wasEdit ? t("notices.expenseUpdated") : t("notices.expenseAdded"));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void insertCloudExpense(expense)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.saveLocalOnly"));
-        });
-    }
+    enqueue({ type: "expense.upsert", expense });
   };
 
   const deleteExpense = (id: number) => {
     setExpenses((current) => current.filter((item) => item.id !== id));
     if (editingExpenseId === id) resetExpenseForm();
     showNotice(t("notices.expenseDeleted"));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void deleteCloudExpense(id)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.deleteLocalOnly"));
-        });
-    }
+    enqueue({ type: "expense.delete", id });
   };
 
   const addExchange = (exchange: Omit<Exchange, "id" | "doneBy" | "doneByName">) => {
     const record: Exchange = {
       ...exchange,
-      id: Date.now(),
+      id: createRecordId(),
       doneBy: authUser?.username,
       doneByName: authUser?.displayName,
     };
     setExchanges((current) => [record, ...current]);
     showNotice(t("notices.exchangeSaved"));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void insertCloudExchange(record)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.saveLocalOnly"));
-        });
-    }
+    enqueue({ type: "exchange.upsert", exchange: record });
   };
 
   const deleteExchange = (id: number) => {
     setExchanges((current) => current.filter((item) => item.id !== id));
     showNotice(t("notices.exchangeDeleted"));
-    if (isCloudEnabled) {
-      setSyncStatus("saving");
-      void deleteCloudExchange(id)
-        .then(() => setSyncStatus("online"))
-        .catch((error) => {
-          console.error(error);
-          setSyncStatus("error");
-          showNotice(t("notices.deleteLocalOnly"));
-        });
-    }
-  };
-
-  // Server refused a sale because another device sold the last pieces first: undo it here too.
-  const rollbackSales = (rejected: Sale[], error: unknown) => {
-    console.error(error);
-    if (error instanceof Error && /out of stock/i.test(error.message)) {
-      const ids = new Set(rejected.map((sale) => sale.id));
-      setSales((current) => current.filter((sale) => !ids.has(sale.id)));
-      setSyncStatus("online");
-      showNotice(t("notices.saleCancelledStock"));
-      return;
-    }
-    setSyncStatus("error");
-    showNotice(t("notices.deviceSaveCloudFail"));
+    enqueue({ type: "exchange.delete", id });
   };
 
   const goToSale = (sku: string) => {
     openQuickSale(sku);
   };
+
+  // A fresh device still holding the built-in sample catalogue, with nothing recorded on it.
+  const isDemoData =
+    !sales.length &&
+    !expenses.length &&
+    products.length === initialProducts.length &&
+    products.every((product) => initialProducts.some((item) => item.sku === product.sku));
 
   const pageInfo = navItems.find((item) => item.id === activeTab)!;
 
@@ -809,7 +679,7 @@ export default function App() {
           ? "غير_محدد"
           : accounts.find((account) => account.username === seller)?.username || seller;
     XLSX.writeFile(workbook, `Stayle_More_مبيعات_${suffix}.xlsx`);
-    setNotice(t("notices.excelDownloaded"));
+    showNotice(t("notices.excelDownloaded"));
   };
 
   const exportMonthReport = async (month: string, usdRate?: number) => {
@@ -916,7 +786,7 @@ export default function App() {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(expenseRows), "المصاريف");
     workbook.Workbook = { Views: [{ RTL: true }] };
     XLSX.writeFile(workbook, `Stayle_More_تقرير_${month}${usdRate ? "_USD" : ""}.xlsx`);
-    setNotice(t("notices.reportDownloaded", { month: formatMonthLabel(month) }));
+    showNotice(t("notices.reportDownloaded", { month: formatMonthLabel(month) }));
   };
 
   const importWorkbook = (event: ChangeEvent<HTMLInputElement>) => {
@@ -950,7 +820,7 @@ export default function App() {
             String(cellValue(row, ["بيع سريع"]) || "").trim().toLowerCase(),
           ),
         })).filter((product) => product.sku);
-        const importedSales: Sale[] = saleRows.map((row, index) => {
+        const importedSales: Sale[] = saleRows.map((row) => {
           const qty = Number(cellValue(row, ["الكمية المباعة"]) || 0);
           const priceRaw = cellValue(row, ["سعر القطعة"]);
           const costRaw = cellValue(row, ["سعر التكلفة"]);
@@ -964,7 +834,7 @@ export default function App() {
               account.username === soldByName,
           );
           return {
-            id: Date.now() + index,
+            id: createRecordId(),
             date: excelDate(cellValue(row, ["التاريخ"])),
             sku: String(cellValue(row, ["رمز المنتج", "رمز المنتج (SKU)"]) || ""),
             quantity: qty,
@@ -975,10 +845,10 @@ export default function App() {
             soldByName: matched?.displayName || soldByName || undefined,
           };
         }).filter((sale) => sale.sku && sale.quantity > 0);
-        const importedExpenses: Expense[] = expenseRows.map((row, index) => {
+        const importedExpenses: Expense[] = expenseRows.map((row) => {
           const note = String(cellValue(row, ["ملاحظة", "ملاحظات"]) || "").trim();
           return {
-            id: Date.now() + index,
+            id: createRecordId(),
             category: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
             categoryAr: String(cellValue(row, ["بند المصروف"]) || "مصروف آخر"),
             amount: Number(cellValue(row, ["المبلغ", "المبلغ المدفوع"]) || 0),
@@ -992,22 +862,14 @@ export default function App() {
         setSales(importedSales);
         setExpenses(importedExpenses);
         setSelectedSku(importedProducts[0].sku);
-        if (isCloudEnabled) {
-          setSyncStatus("saving");
-          await replaceCloudStore({
-            products: importedProducts,
-            sales: importedSales,
-            expenses: importedExpenses,
-            settings,
-          });
-          setSyncStatus("online");
-          setNotice(t("notices.importCloudOk"));
-        } else {
-          setNotice(t("notices.importLocalOk"));
-        }
+        // The workbook has no exchange sheet: keep the current log instead of wiping the server's.
+        enqueue({
+          type: "store.replace",
+          store: { products: importedProducts, sales: importedSales, expenses: importedExpenses, settings, exchanges },
+        });
+        showNotice(isCloudEnabled ? t("notices.importCloudOk") : t("notices.importLocalOk"));
       } catch {
-        setNotice(t("notices.importFailed"));
-        if (isCloudEnabled) setSyncStatus("error");
+        showNotice(t("notices.importFailed"), "warning");
       }
     };
     reader.readAsArrayBuffer(file);
@@ -1044,25 +906,13 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="mt-auto rounded-2xl border border-white/10 bg-white/8 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className={`size-2 rounded-full ring-4 ${syncStatus === "online" ? "bg-emerald-400 ring-emerald-400/15" : syncStatus === "error" ? "bg-coral ring-coral/20" : syncStatus === "saving" || syncStatus === "loading" ? "bg-amber-300 ring-amber-300/20" : "bg-slate-300 ring-slate-300/20"}`} />
-            {syncStatus === "online"
-              ? t("sync.online")
-              : syncStatus === "saving"
-                ? t("sync.saving")
-                : syncStatus === "loading"
-                  ? t("sync.loading")
-                  : syncStatus === "error"
-                    ? t("sync.error")
-                    : t("sync.local")}
-          </div>
-          <p className="mt-2 text-xs leading-5 text-brand">
-            {isCloudEnabled
-              ? t("sync.sharedHint")
-              : t("sync.envHint")}
-          </p>
-        </div>
+        <SyncSidebarCard
+          status={syncStatus}
+          pending={sync.pending}
+          lastSyncedAt={sync.lastSyncedAt}
+          cloudEnabled={isCloudEnabled}
+          onSyncNow={sync.syncNow}
+        />
       </aside>
 
       <div className="lg:pr-72">
@@ -1074,27 +924,7 @@ export default function App() {
                 <p className="truncate text-base font-bold text-slate-900 md:text-lg">{t(pageInfo.labelKey)}</p>
                 <p className="hidden text-xs text-slate-500 md:block" dir="rtl">{t(pageInfo.hintKey)}</p>
               </div>
-              <span
-                className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold sm:inline ${
-                  syncStatus === "online"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : syncStatus === "error"
-                      ? "bg-coral-pale text-coral-dark"
-                      : syncStatus === "local"
-                        ? "bg-slate-100 text-slate-500"
-                        : "bg-amber-50 text-amber-700"
-                }`}
-              >
-                {syncStatus === "online"
-                  ? t("sync.onlineShort")
-                  : syncStatus === "saving"
-                    ? t("sync.savingShort")
-                    : syncStatus === "loading"
-                      ? t("sync.loadingShort")
-                      : syncStatus === "error"
-                        ? t("sync.offlineShort")
-                        : t("sync.localShort")}
-              </span>
+              <SyncBadge status={syncStatus} pending={sync.pending} onSyncNow={sync.syncNow} />
             </div>
             <div className="flex items-center gap-1.5 md:gap-3">
               <button
@@ -1175,7 +1005,7 @@ export default function App() {
               </div>
               <button
                 className="grid size-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-coral-soft hover:text-coral-dark"
-                onClick={logout}
+                onClick={requestLogout}
                 aria-label={t("common.logout")}
                 title={t("common.logout")}
               >
@@ -1204,10 +1034,37 @@ export default function App() {
 
         <main className="mx-auto max-w-[1600px] p-4 pb-mobile-nav md:p-8">
           {notice && (
-            <div className="fixed left-4 right-4 top-[4.5rem] z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-emerald-200 bg-white p-3.5 shadow-xl shadow-slate-900/10 md:left-5 md:right-auto md:top-24">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Icon name="check" className="size-5" /></span>
-              <p className="text-sm font-medium text-slate-700">{notice}</p>
+            <div
+              role={notice.tone === "warning" ? "alert" : "status"}
+              className={`fixed left-4 right-4 top-18 z-50 flex max-w-sm items-center gap-3 rounded-2xl border bg-white p-3.5 shadow-xl shadow-slate-900/10 md:left-5 md:right-auto md:top-24 ${notice.tone === "warning" ? "border-coral-border" : "border-emerald-200"}`}
+            >
+              <span
+                className={`grid size-9 shrink-0 place-items-center rounded-full ${notice.tone === "warning" ? "bg-coral-pale text-coral-dark" : "bg-emerald-100 text-emerald-700"}`}
+              >
+                <Icon name={notice.tone === "warning" ? "warning" : "check"} className="size-5" />
+              </span>
+              <p className="text-sm font-medium text-slate-700">{notice.message}</p>
             </div>
+          )}
+
+          {updateAvailable && (
+            <Banner
+              icon="sparkles"
+              message={t("pwa.updateAvailable")}
+              actionLabel={t("pwa.reload")}
+              onAction={applyUpdate}
+            />
+          )}
+
+          {isCloudEnabled && notificationState === "ask" && (
+            <Banner
+              icon="bell"
+              message={t("sync.enableNotifications")}
+              actionLabel={t("sync.allowNotifications")}
+              onAction={() => void enableNotifications()}
+              dismissLabel={t("common.notNow")}
+              onDismiss={disableNotifications}
+            />
           )}
 
           {activeTab === "dashboard" && (
@@ -1302,7 +1159,18 @@ export default function App() {
             />
           )}
           {activeTab === "settings" && (
-            <SettingsPage settings={settings} products={products} onChangeUsdRate={changeUsdRate} />
+            <SettingsPage
+              settings={settings}
+              products={products}
+              onChangeUsdRate={changeUsdRate}
+              sync={{
+                status: syncStatus,
+                pending: sync.pending,
+                lastSyncedAt: sync.lastSyncedAt,
+                cloudEnabled: isCloudEnabled,
+                onSyncNow: sync.syncNow,
+              }}
+            />
           )}
           {productModal && (
             <ProductModal
@@ -1318,11 +1186,44 @@ export default function App() {
             <QuickSaleSheet
               products={products}
               soldBySku={soldBySku}
-              initialSku={selectedSku}
+              initialSku={quickSaleSku}
               onClose={() => setQuickSaleOpen(false)}
               onCheckout={(lines) => {
                 if (checkoutCart(lines)) setQuickSaleOpen(false);
               }}
+            />
+          )}
+          {emptyServerPrompt && (
+            <ConfirmDialog
+              title={t("sync.emptyServerTitle")}
+              message={
+                isDemoData
+                  ? t("sync.emptyServerDemoMessage")
+                  : t("sync.emptyServerMessage", { products: products.length, sales: sales.length })
+              }
+              confirmLabel={t("sync.emptyServerUpload")}
+              cancelLabel={t("common.notNow")}
+              confirmIcon="check"
+              danger={false}
+              onConfirm={() => {
+                setEmptyServerPrompt(false);
+                enqueue({ type: "store.replace", store: { products, sales, expenses, settings, exchanges } });
+              }}
+              onCancel={() => {
+                emptyServerDismissed.current = true;
+                setEmptyServerPrompt(false);
+              }}
+            />
+          )}
+          {confirmLogout && (
+            <ConfirmDialog
+              title={t("sync.logoutPendingTitle")}
+              message={t("sync.logoutPendingMessage", { count: sync.pending })}
+              confirmLabel={t("common.logout")}
+              cancelLabel={t("common.cancel")}
+              confirmIcon="logout"
+              onConfirm={() => logout()}
+              onCancel={() => setConfirmLogout(false)}
             />
           )}
           {confirmDelete && (

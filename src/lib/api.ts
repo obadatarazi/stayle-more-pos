@@ -1,4 +1,6 @@
-const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "";
+import { reportReachable, reportUnreachable } from "./networkStatus";
+
+const API_URL =(import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "";
 
 export const isCloudEnabled = Boolean(API_URL);
 
@@ -46,6 +48,30 @@ type ApiResponse<T> = {
   details?: unknown;
 };
 
+/** The server answered, but refused the request. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly details: unknown;
+
+  constructor(message: string, status: number, details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+/** The server could not be reached (offline, DNS, CORS, timeout). Safe to retry. */
+export class NetworkError extends Error {
+  constructor(message = "Network unreachable") {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
+// Shop Wi-Fi can hang instead of failing; don't let one request block the sync queue forever.
+const REQUEST_TIMEOUT_MS = 20000;
+
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!API_URL) throw new Error("API is not configured");
 
@@ -57,10 +83,23 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getApiToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    reportUnreachable();
+    throw new NetworkError(error instanceof Error ? error.message : undefined);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+  reportReachable();
 
   let payload: ApiResponse<T> | null = null;
   try {
@@ -70,7 +109,7 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok || !payload?.ok) {
-    throw new Error(payload?.error || `Request failed (${response.status})`);
+    throw new ApiError(payload?.error || `Request failed (${response.status})`, response.status, payload?.details);
   }
 
   return payload.data as T;

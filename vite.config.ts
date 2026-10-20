@@ -1,6 +1,7 @@
 import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json'
@@ -24,6 +25,43 @@ react(),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
       figmaMakeKitPlugin({ storiesGlob: '/src/**/*.stories.{ts,tsx,js,jsx}' }),
+      // Offline app shell. Scope and start_url follow Vite's `base`, so `/` and
+      // FIGMA_PUBLIC_URL subpath deploys both work. API calls are never cached.
+      VitePWA({
+        registerType: 'prompt',
+        injectRegister: false,
+        manifest: {
+          id: './',
+          name: 'Stayle & More · ستايل آند مور',
+          short_name: 'Stayle & More',
+          description: siteConfiguration.description,
+          lang: 'ar',
+          dir: 'rtl',
+          display: 'standalone',
+          orientation: 'any',
+          theme_color: '#ffffff',
+          background_color: '#fff7f7',
+          categories: ['business', 'productivity'],
+          icons: [
+            { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,png,jpg,svg,ico,woff2}'],
+          // The Excel library chunk is large but needed for export/import while offline.
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/\/api(\/|$)/, /\/robots\.txt$/],
+          cleanupOutdatedCaches: true,
+          // Control the page from the first visit, so a later update can take over and reload it.
+          clientsClaim: true,
+          // Focus/open the app when a sync notification is tapped.
+          importScripts: ['sw-notifications.js'],
+        },
+        devOptions: { enabled: false },
+      }),
     ],
     resolve: {
       alias: {
