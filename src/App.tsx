@@ -5,7 +5,8 @@ import Icon from "@/components/Icon";
 import Banner from "@/components/Banner";
 import ProductModal from "@/components/ProductModal";
 import QuickSaleSheet from "@/components/QuickSaleSheet";
-import { SyncBadge, SyncSidebarCard } from "@/components/SyncStatus";
+import SyncSheet from "@/components/SyncSheet";
+import { SyncButton, SyncSidebarCard } from "@/components/SyncStatus";
 import { defaultSettings, storageKeys } from "@/config/site";
 import { accounts, allCategories, initialExpenses, initialProducts, initialSales, readAuth } from "@/data/demo";
 import { mobileNavItems, navItems, tabFromHash } from "@/data/nav";
@@ -129,6 +130,7 @@ export default function App() {
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const noticeTimer = useRef<number | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [syncSheetOpen, setSyncSheetOpen] = useState(false);
   const [emptyServerPrompt, setEmptyServerPrompt] = useState(false);
   // "Not now" holds for this session; the question comes back after the next app start.
   const emptyServerDismissed = useRef(false);
@@ -918,31 +920,31 @@ export default function App() {
       <div className="lg:pr-72">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white lg:bg-white/95 lg:backdrop-blur-xl">
           <div className="flex h-14 items-center justify-between gap-2 px-4 md:h-20 md:px-8">
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2">
               <BrandLogo className="size-10 shrink-0 rounded-xl object-cover lg:hidden" />
               <div className="min-w-0">
                 <p className="truncate text-base font-bold text-slate-900 md:text-lg">{t(pageInfo.labelKey)}</p>
                 <p className="hidden text-xs text-slate-500 md:block" dir="rtl">{t(pageInfo.hintKey)}</p>
               </div>
-              <SyncBadge status={syncStatus} pending={sync.pending} onSyncNow={sync.syncNow} />
             </div>
-            <div className="flex items-center gap-1.5 md:gap-3">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-1.5 md:gap-3">
+              <SyncButton status={syncStatus} pending={sync.pending} onOpen={() => setSyncSheetOpen(true)} />
               <button
-                className={`grid size-11 place-items-center rounded-xl border lg:hidden ${activeTab === "exchange" ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-600"}`}
+                className={`grid size-10 place-items-center rounded-xl border sm:size-11 lg:hidden ${activeTab === "exchange" ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-600"}`}
                 onClick={() => setActiveTab("exchange")}
                 aria-label={t("nav.exchange")}
               >
                 <Icon name="exchange" />
               </button>
               <button
-                className={`grid size-11 place-items-center rounded-xl border lg:hidden ${activeTab === "settings" ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-600"}`}
+                className={`grid size-10 place-items-center rounded-xl border sm:size-11 lg:hidden ${activeTab === "settings" ? "border-navy bg-soft-blue text-navy" : "border-slate-200 bg-white text-slate-600"}`}
                 onClick={() => setActiveTab("settings")}
                 aria-label={t("nav.settings")}
               >
                 <Icon name="settings" />
               </button>
               <button
-                className="grid size-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 md:hidden"
+                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 sm:size-11 md:hidden"
                 onClick={() => setMobileSearchOpen((open) => !open)}
                 aria-label={t("common.search")}
               >
@@ -994,7 +996,8 @@ export default function App() {
               >
                 <Icon name="plus" />
               </button>
-              <div className="flex items-center gap-2 rounded-xl border border-coral-border bg-brand/60 px-2.5 py-1.5">
+              {/* On phones the account is shown in the status sheet instead, to keep the header uncluttered. */}
+              <div className="hidden items-center gap-2 rounded-xl border border-coral-border bg-brand/60 px-2.5 py-1.5 sm:flex">
                 <span className="grid size-8 place-items-center rounded-lg bg-navy text-[11px] font-bold text-white">
                   {authUser.shortName}
                 </span>
@@ -1004,7 +1007,7 @@ export default function App() {
                 </span>
               </div>
               <button
-                className="grid size-11 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-coral-soft hover:text-coral-dark"
+                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-coral-soft hover:text-coral-dark sm:size-11"
                 onClick={requestLogout}
                 aria-label={t("common.logout")}
                 title={t("common.logout")}
@@ -1191,6 +1194,17 @@ export default function App() {
               onCheckout={(lines) => {
                 if (checkoutCart(lines)) setQuickSaleOpen(false);
               }}
+            />
+          )}
+          {syncSheetOpen && (
+            <SyncSheet
+              status={syncStatus}
+              pending={sync.pending}
+              lastSyncedAt={sync.lastSyncedAt}
+              cloudEnabled={isCloudEnabled}
+              user={authUser}
+              onSyncNow={sync.syncNow}
+              onClose={() => setSyncSheetOpen(false)}
             />
           )}
           {emptyServerPrompt && (

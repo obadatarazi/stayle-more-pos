@@ -52,3 +52,68 @@ export function applyUpdate() {
   // controlled yet), reload anyway — the new worker is already active.
   window.setTimeout(() => window.location.reload(), 2000);
 }
+
+// ---------- install prompt ----------
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
+export type InstallState = "installed" | "available" | "ios" | "unavailable";
+
+let installEvent: BeforeInstallPromptEvent | null = null;
+let installed =
+  typeof window !== "undefined" &&
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true);
+const installListeners = new Set<() => void>();
+
+function notifyInstall() {
+  for (const listener of installListeners) listener();
+}
+
+if (typeof window !== "undefined") {
+  // Chrome/Edge/Samsung Internet: keep the event so our own button can open the install dialog.
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    installEvent = event as BeforeInstallPromptEvent;
+    notifyInstall();
+  });
+  window.addEventListener("appinstalled", () => {
+    installEvent = null;
+    installed = true;
+    notifyInstall();
+  });
+}
+
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+function getInstallState(): InstallState {
+  if (installed) return "installed";
+  if (installEvent) return "available";
+  if (isIos()) return "ios";
+  return "unavailable";
+}
+
+function subscribeInstall(listener: () => void) {
+  installListeners.add(listener);
+  return () => {
+    installListeners.delete(listener);
+  };
+}
+
+export function useInstallState() {
+  return useSyncExternalStore(subscribeInstall, getInstallState, () => "unavailable" as InstallState);
+}
+
+export async function promptInstall() {
+  if (!installEvent) return false;
+  const event = installEvent;
+  await event.prompt();
+  const { outcome } = await event.userChoice;
+  // The event can only be used once.
+  installEvent = null;
+  notifyInstall();
+  return outcome === "accepted";
+}

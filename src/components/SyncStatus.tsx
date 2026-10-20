@@ -1,5 +1,6 @@
 import Icon from "@/components/Icon";
 import type { SyncStatus } from "@/hooks/useCloudSync";
+import type { IconName } from "@/types/store";
 import { localeFor } from "@/i18n/config";
 import { useI18n } from "@/i18n/useI18n";
 
@@ -13,18 +14,19 @@ const dotClass: Record<SyncStatus, string> = {
   local: "bg-slate-300 ring-slate-300/20",
 };
 
-const badgeClass: Record<SyncStatus, string> = {
-  online: "bg-emerald-100 text-emerald-700",
-  saving: "bg-amber-50 text-amber-700",
-  loading: "bg-amber-50 text-amber-700",
-  pending: "bg-amber-100 text-amber-800",
-  offline: "bg-slate-800 text-white",
-  error: "bg-coral-pale text-coral-dark",
-  local: "bg-slate-100 text-slate-500",
+/** Header button look per state: calm when all is well, loud when the cashier must notice. */
+const buttonClass: Record<SyncStatus, string> = {
+  online: "border-slate-200 bg-white text-slate-600",
+  saving: "border-slate-200 bg-white text-slate-600",
+  loading: "border-slate-200 bg-white text-slate-600",
+  pending: "border-amber-200 bg-amber-50 text-amber-700",
+  offline: "border-slate-800 bg-slate-800 text-white",
+  error: "border-coral-border bg-coral-pale text-coral-dark",
+  local: "border-slate-200 bg-white text-slate-400",
 };
 
-/** States the cashier must notice; these stay visible on phones too. */
-const needsAttention = (status: SyncStatus) => status === "offline" || status === "pending" || status === "error";
+export const statusIcon = (status: SyncStatus): IconName =>
+  status === "offline" ? "cloudOff" : status === "error" ? "warning" : "cloud";
 
 export function useSyncLabels(status: SyncStatus, pending: number) {
   const { t } = useI18n();
@@ -39,28 +41,50 @@ export function SyncDot({ status }: { status: SyncStatus }) {
   );
 }
 
-export function SyncBadge({
+/** Header button: icon + state dot + pending count; label from `sm` up. Opens the status sheet. */
+export function SyncButton({
   status,
   pending,
-  onSyncNow,
+  onOpen,
 }: {
   status: SyncStatus;
   pending: number;
-  onSyncNow: () => void;
+  onOpen: () => void;
 }) {
+  const { t } = useI18n();
   const { short, long } = useSyncLabels(status, pending);
-  const actionable = status === "pending" || status === "error";
+  const busy = status === "saving" || status === "loading";
   return (
     <button
       type="button"
-      onClick={actionable ? onSyncNow : undefined}
+      data-sync-button
+      onClick={onOpen}
       title={long}
-      aria-label={long}
-      aria-live="polite"
-      className={`shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${badgeClass[status]} ${needsAttention(status) ? "inline-flex" : "hidden sm:inline-flex"} ${actionable ? "cursor-pointer" : "cursor-default"}`}
+      aria-label={`${t("sync.panelTitle")}: ${long}`}
+      aria-haspopup="dialog"
+      className={`relative inline-flex size-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border transition active:scale-95 sm:size-auto sm:min-h-11 sm:px-3 ${buttonClass[status]}`}
     >
-      {status === "offline" && <span className="size-1.5 rounded-full bg-amber-300" />}
-      {short}
+      <Icon name={statusIcon(status)} className={`size-5 ${busy ? "animate-pulse" : ""}`} />
+      <span className="hidden text-xs font-bold sm:inline">{short}</span>
+      {pending > 0 ? (
+        <span
+          aria-hidden="true"
+          className="absolute -top-1.5 -end-1.5 grid h-5 min-w-5 place-items-center sm:hidden rounded-full bg-coral-dark px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+          dir="ltr"
+        >
+          {pending > 99 ? "99+" : pending}
+        </span>
+      ) : (
+        status !== "local" && (
+          <span
+            aria-hidden="true"
+            className={`absolute -top-0.5 -end-0.5 size-2.5 rounded-full ring-2 ring-white ${dotClass[status].split(" ")[0]} ${busy ? "animate-pulse" : ""}`}
+          />
+        )
+      )}
+      <span className="sr-only" aria-live="polite">
+        {long}
+      </span>
     </button>
   );
 }

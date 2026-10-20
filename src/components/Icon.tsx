@@ -31,6 +31,9 @@ const iconPaths: Record<IconName, ReactNode> = {
   cash: <><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M7 12h.01M17 12h.01" /></>,
   chart: <><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /><path d="m14 10 3-3 3 2" /></>,
   filter: <><path d="M4 5h16l-6 7v5l-4 2v-7Z" /></>,
+  cloud: <><path d="M7 18h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.5 4.5 0 0 0 7 18Z" /></>,
+  cloudOff: <><path d="M3 3l18 18" /><path d="M9.5 6.2A6 6 0 0 1 18.1 10a4 4 0 0 1 2.4 6.7M17 18H7a4.5 4.5 0 0 1-1.6-8.7" /></>,
+  refresh: <><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8" /><path d="M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16" /><path d="M20 20v-4h-4" /></>,
 };
 
 export default function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {

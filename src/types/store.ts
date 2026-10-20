@@ -76,7 +76,10 @@ export type IconName =
   | "chart"
   | "settings"
   | "exchange"
-  | "filter";
+  | "filter"
+  | "cloud"
+  | "cloudOff"
+  | "refresh";
 
 export type StoreSettings = {
   usdRate: number;

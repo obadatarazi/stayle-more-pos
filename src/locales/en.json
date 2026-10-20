@@ -97,7 +97,14 @@
     "emptyServerTitle": "The server has no data",
     "emptyServerMessage": "The server is empty. Upload this device’s data ({products} products, {sales} sales) so both devices share it?",
     "emptyServerDemoMessage": "The server is empty and this device only has the built-in sample products. Upload them anyway? Choose “Not now” if the real data is on the other device.",
-    "emptyServerUpload": "Upload"
+    "emptyServerUpload": "Upload",
+    "panelTitle": "App status",
+    "connection": "Connection",
+    "connected": "Connected",
+    "disconnected": "Offline",
+    "signedInAs": "Signed in as",
+    "syncing": "Syncing with the server…",
+    "allSynced": "Everything on this device is saved on the server."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -544,6 +551,11 @@
   },
   "pwa": {
     "updateAvailable": "A new version of the app is ready.",
-    "reload": "Update now"
+    "reload": "Update now",
+    "installTitle": "Install the app",
+    "install": "Install",
+    "installHint": "Adds Stayle & More to the home screen; it opens full screen and works offline.",
+    "installIos": "In Safari tap Share, then “Add to Home Screen”. Notifications on iPhone need this.",
+    "installManual": "In Chrome open the ⋮ menu → “Add to Home screen” → Install. If the phone shows an error, allow Chrome to add home-screen shortcuts in the phone’s app settings."
   }
 }
