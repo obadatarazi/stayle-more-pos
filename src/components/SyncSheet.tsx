@@ -5,7 +5,8 @@ import NotificationsSetting from "@/components/NotificationsSetting";
 import { statusIcon, useLastSyncTime, useSyncLabels } from "@/components/SyncStatus";
 import type { SyncStatus } from "@/hooks/useCloudSync";
 import { useI18n } from "@/i18n/useI18n";
-import { promptInstall, useInstallState } from "@/lib/pwa";
+import InstallHelp from "@/components/InstallHelp";
+import { promptInstall, reportInstallFailed, useInstallState } from "@/lib/pwa";
 import type { AuthUser } from "@/types/store";
 
 const heroClass: Record<SyncStatus, string> = {
@@ -138,19 +139,36 @@ export default function SyncSheet({
           </Button>
         )}
 
-        {install !== "installed" && (
+        {install === "failed" && (
+          <div className="mt-4">
+            <InstallHelp />
+          </div>
+        )}
+        {install !== "installed" && install !== "failed" && (
           <div className="mt-4 rounded-2xl border border-slate-200 p-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h3 className="text-sm font-bold text-slate-900">{t("pwa.installTitle")}</h3>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {install === "available"
+                  {install === "installing"
+                    ? t("pwa.installing")
+                    : install === "available"
                     ? t("pwa.installHint")
                     : install === "ios"
                       ? t("pwa.installIos")
                       : t("pwa.installManual")}
                 </p>
               </div>
+              {install === "installing" && (
+                <Button type="button" variant="ghost" className="shrink-0" onClick={reportInstallFailed}>
+                  {t("pwa.didntWork")}
+                </Button>
+              )}
+              {install === "unavailable" && (
+                <Button type="button" variant="ghost" className="shrink-0" onClick={reportInstallFailed}>
+                  {t("pwa.didntWork")}
+                </Button>
+              )}
               {install === "available" && (
                 <Button type="button" variant="secondary" className="shrink-0" onClick={() => void promptInstall()}>
                   <Icon name="download" className="size-4" />

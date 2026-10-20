@@ -558,6 +558,42 @@
     "installIos": "In Safari tap Share, then “Add to Home Screen”. Notifications on iPhone need this.",
     "installManual": "In Chrome open the ⋮ menu → “Add to Home screen” → Install. If the phone shows an error, allow Chrome to add home-screen shortcuts in the phone’s app settings.",
     "addToHome": "Add to home screen",
-    "howTo": "How?"
+    "howTo": "How?",
+    "installing": "Adding to the home screen…",
+    "didntWork": "Didn’t work?",
+    "help": {
+      "title": "The icon didn’t appear on the home screen?",
+      "why": "Your phone is most likely blocking Chrome from adding home-screen shortcuts. It’s not the app — allow it in the phone’s settings, then try again:",
+      "otherBrands": "Steps for other phone brands",
+      "updateChrome": "Also make sure Chrome is up to date in the Play Store.",
+      "menuRetry": "After allowing it: open Chrome’s ⋮ menu → “Add to Home screen” → Install.",
+      "retry": "Try again",
+      "brands": {
+        "xiaomi": {
+          "name": "Xiaomi / Redmi / Poco",
+          "steps": "Settings → Apps → Manage apps → Chrome → Other permissions → “Home screen shortcuts” → Allow."
+        },
+        "samsung": {
+          "name": "Samsung",
+          "steps": "Long-press the home screen → Settings → turn off “Lock Home screen layout”. Then try again."
+        },
+        "oppo": {
+          "name": "Oppo",
+          "steps": "Settings → Apps → Chrome → Permissions → allow “Create desktop shortcuts”."
+        },
+        "realme": {
+          "name": "Realme",
+          "steps": "Settings → Apps → Chrome → Permissions → allow “Create desktop shortcuts”."
+        },
+        "vivo": {
+          "name": "Vivo",
+          "steps": "Settings → Apps → Chrome → Permissions → allow “Desktop shortcuts”."
+        },
+        "huawei": {
+          "name": "Huawei / Honor",
+          "steps": "Settings → Apps → Chrome → Permissions → “Create shortcuts” → Allow."
+        }
+      }
+    }
   }
 }

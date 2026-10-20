@@ -1,8 +1,9 @@
 import { useState } from "react";
 import Icon from "@/components/Icon";
+import InstallHelp from "@/components/InstallHelp";
 import { storageKeys } from "@/config/site";
 import { useI18n } from "@/i18n/useI18n";
-import { promptInstall, useInstallState } from "@/lib/pwa";
+import { promptInstall, reportInstallFailed, useInstallState } from "@/lib/pwa";
 
 const HIDE_FOR_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,7 +23,15 @@ export default function InstallPill() {
   const [hidden, setHidden] = useState(dismissedRecently);
   const [showIosSteps, setShowIosSteps] = useState(false);
 
-  if (hidden || (install !== "available" && install !== "ios")) return null;
+  // A failed attempt always shows its help, even if the pill was dismissed earlier.
+  if (install === "failed") {
+    return (
+      <div className="mb-4 md:mb-6">
+        <InstallHelp />
+      </div>
+    );
+  }
+  if (hidden || (install !== "available" && install !== "ios" && install !== "installing")) return null;
 
   const dismiss = () => {
     try {
@@ -37,16 +46,28 @@ export default function InstallPill() {
     <div className="mb-4 md:mb-6">
       <div className="flex items-center gap-2 rounded-full border border-coral-border bg-white py-1.5 ps-1.5 pe-2 shadow-sm">
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-soft-blue text-navy">
-          <Icon name="download" className="size-4" />
+          <Icon name="download" className={`size-4 ${install === "installing" ? "animate-bounce" : ""}`} />
         </span>
-        <p className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">{t("pwa.addToHome")}</p>
-        <button
-          type="button"
-          onClick={() => (install === "available" ? void promptInstall() : setShowIosSteps((open) => !open))}
-          className="shrink-0 rounded-full bg-navy px-3.5 py-1.5 text-xs font-bold text-white active:scale-95"
-        >
-          {install === "available" ? t("pwa.install") : t("pwa.howTo")}
-        </button>
+        <p className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">
+          {install === "installing" ? t("pwa.installing") : t("pwa.addToHome")}
+        </p>
+        {install === "installing" ? (
+          <button
+            type="button"
+            onClick={reportInstallFailed}
+            className="shrink-0 rounded-full px-2 py-1.5 text-xs font-bold text-navy underline"
+          >
+            {t("pwa.didntWork")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => (install === "available" ? void promptInstall() : setShowIosSteps((open) => !open))}
+            className="shrink-0 rounded-full bg-navy px-3.5 py-1.5 text-xs font-bold text-white active:scale-95"
+          >
+            {install === "available" ? t("pwa.install") : t("pwa.howTo")}
+          </button>
+        )}
         <button
           type="button"
           onClick={dismiss}

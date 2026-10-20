@@ -60,9 +60,17 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-export type InstallState = "installed" | "available" | "ios" | "unavailable";
+export type InstallState = "installed" | "installing" | "failed" | "available" | "ios" | "unavailable";
+
+// Chrome never tells the page when the phone refuses to add the icon (e.g. the launcher blocks
+// home-screen shortcuts). A successful install fires `appinstalled`; if that hasn't happened this
+// long after the user accepted, treat it as failed and show help.
+const INSTALL_CONFIRM_MS = 20000;
 
 let installEvent: BeforeInstallPromptEvent | null = null;
+let installing = false;
+let installFailed = false;
+let installTimer: number | null = null;
 let installed =
   typeof window !== "undefined" &&
   (window.matchMedia("(display-mode: standalone)").matches ||
@@ -83,6 +91,9 @@ if (typeof window !== "undefined") {
   window.addEventListener("appinstalled", () => {
     installEvent = null;
     installed = true;
+    installing = false;
+    installFailed = false;
+    if (installTimer !== null) window.clearTimeout(installTimer);
     notifyInstall();
   });
 }
@@ -91,6 +102,8 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 function getInstallState(): InstallState {
   if (installed) return "installed";
+  if (installing) return "installing";
+  if (installFailed) return "failed";
   if (installEvent) return "available";
   if (isIos()) return "ios";
   return "unavailable";
@@ -107,13 +120,44 @@ export function useInstallState() {
   return useSyncExternalStore(subscribeInstall, getInstallState, () => "unavailable" as InstallState);
 }
 
+/** Whether the browser can show its install dialog right now (it may re-offer after a failure). */
+export function canPromptInstall() {
+  return installEvent !== null;
+}
+
 export async function promptInstall() {
   if (!installEvent) return false;
   const event = installEvent;
+  installFailed = false;
   await event.prompt();
   const { outcome } = await event.userChoice;
   // The event can only be used once.
   installEvent = null;
+  if (outcome === "accepted" && !installed) {
+    installing = true;
+    if (installTimer !== null) window.clearTimeout(installTimer);
+    installTimer = window.setTimeout(() => {
+      installTimer = null;
+      if (installed) return;
+      installing = false;
+      installFailed = true;
+      notifyInstall();
+    }, INSTALL_CONFIRM_MS);
+  }
   notifyInstall();
   return outcome === "accepted";
+}
+
+/** "Didn't work?" — show the help even if the page couldn't detect the failure itself. */
+export function reportInstallFailed() {
+  if (installed) return;
+  if (installTimer !== null) window.clearTimeout(installTimer);
+  installing = false;
+  installFailed = true;
+  notifyInstall();
+}
+
+export function clearInstallFailed() {
+  installFailed = false;
+  notifyInstall();
 }
