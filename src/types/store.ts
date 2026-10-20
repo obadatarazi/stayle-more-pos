@@ -79,7 +79,8 @@ export type IconName =
   | "filter"
   | "cloud"
   | "cloudOff"
-  | "refresh";
+  | "refresh"
+  | "download";
 
 export type StoreSettings = {
   usdRate: number;

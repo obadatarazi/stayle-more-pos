@@ -17,6 +17,8 @@ export const storageKeys = {
   lastSync: "style-more-last-sync",
   // "on" | "off"; missing means the user has not been asked yet.
   notifyPref: "style-more-notify",
+  // Time the "Add to home screen" pill was dismissed; it comes back after a while.
+  installDismissedAt: "style-more-install-dismissed",
 } as const;
 
 export const defaultSettings = { usdRate: 140 } as const;

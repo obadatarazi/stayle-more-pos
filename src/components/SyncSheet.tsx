@@ -153,7 +153,7 @@ export default function SyncSheet({
               </div>
               {install === "available" && (
                 <Button type="button" variant="secondary" className="shrink-0" onClick={() => void promptInstall()}>
-                  <Icon name="arrowDown" className="size-4" />
+                  <Icon name="download" className="size-4" />
                   {t("pwa.install")}
                 </Button>
               )}

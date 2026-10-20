@@ -3,6 +3,7 @@ import BrandLogo from "@/components/BrandLogo";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/Icon";
 import Banner from "@/components/Banner";
+import InstallPill from "@/components/InstallPill";
 import ProductModal from "@/components/ProductModal";
 import QuickSaleSheet from "@/components/QuickSaleSheet";
 import SyncSheet from "@/components/SyncSheet";
@@ -1058,6 +1059,8 @@ export default function App() {
               onAction={applyUpdate}
             />
           )}
+
+          <InstallPill />
 
           {isCloudEnabled && notificationState === "ask" && (
             <Banner

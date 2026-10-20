@@ -556,6 +556,8 @@
     "install": "Install",
     "installHint": "Adds Stayle & More to the home screen; it opens full screen and works offline.",
     "installIos": "In Safari tap Share, then “Add to Home Screen”. Notifications on iPhone need this.",
-    "installManual": "In Chrome open the ⋮ menu → “Add to Home screen” → Install. If the phone shows an error, allow Chrome to add home-screen shortcuts in the phone’s app settings."
+    "installManual": "In Chrome open the ⋮ menu → “Add to Home screen” → Install. If the phone shows an error, allow Chrome to add home-screen shortcuts in the phone’s app settings.",
+    "addToHome": "Add to home screen",
+    "howTo": "How?"
   }
 }

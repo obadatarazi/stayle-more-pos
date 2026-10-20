@@ -33,6 +33,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   filter: <><path d="M4 5h16l-6 7v5l-4 2v-7Z" /></>,
   cloud: <><path d="M7 18h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.5 4.5 0 0 0 7 18Z" /></>,
   cloudOff: <><path d="M3 3l18 18" /><path d="M9.5 6.2A6 6 0 0 1 18.1 10a4 4 0 0 1 2.4 6.7M17 18H7a4.5 4.5 0 0 1-1.6-8.7" /></>,
+  download: <><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M5 20h14" /></>,
   refresh: <><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8" /><path d="M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16" /><path d="M20 20v-4h-4" /></>,
 };
 
