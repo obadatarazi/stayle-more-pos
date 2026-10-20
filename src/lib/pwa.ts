@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { registerSW } from "virtual:pwa-register";
+import { storageKeys } from "@/config/site";
 
 // Updates wait for the user: reloading by itself in the middle of a sale would be worse than
 // running one version behind for a few minutes.
@@ -67,7 +68,28 @@ export type InstallState = "installed" | "installing" | "failed" | "available" |
 // long after the user accepted, treat it as failed and show help.
 const INSTALL_CONFIRM_MS = 20000;
 
+// An unfinished attempt older than this is forgotten on reload.
+const ATTEMPT_MEMORY_MS = 30 * 60 * 1000;
+
+function readAttempt(): number {
+  try {
+    return Number(localStorage.getItem(storageKeys.installAttemptAt)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeAttempt(at: number | null) {
+  try {
+    if (at) localStorage.setItem(storageKeys.installAttemptAt, String(at));
+    else localStorage.removeItem(storageKeys.installAttemptAt);
+  } catch {
+    // ignore
+  }
+}
+
 let installEvent: BeforeInstallPromptEvent | null = null;
+let installStartedAt = 0;
 let installing = false;
 let installFailed = false;
 let installTimer: number | null = null;
@@ -93,8 +115,21 @@ if (typeof window !== "undefined") {
     installed = true;
     installing = false;
     installFailed = false;
+    writeAttempt(null);
     if (installTimer !== null) window.clearTimeout(installTimer);
     notifyInstall();
+  });
+
+  // Reloaded while an install was hanging: go straight to the help.
+  const lastAttempt = readAttempt();
+  if (!installed && lastAttempt && Date.now() - lastAttempt < ATTEMPT_MEMORY_MS) installFailed = true;
+  else if (installed || lastAttempt) writeAttempt(null);
+
+  // Android can pause timers while Chrome's install UI is in front; re-check when we're back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && installing && Date.now() - installStartedAt >= INSTALL_CONFIRM_MS) {
+      markInstallFailed();
+    }
   });
 }
 
@@ -135,29 +170,31 @@ export async function promptInstall() {
   installEvent = null;
   if (outcome === "accepted" && !installed) {
     installing = true;
+    installStartedAt = Date.now();
+    writeAttempt(installStartedAt);
     if (installTimer !== null) window.clearTimeout(installTimer);
-    installTimer = window.setTimeout(() => {
-      installTimer = null;
-      if (installed) return;
-      installing = false;
-      installFailed = true;
-      notifyInstall();
-    }, INSTALL_CONFIRM_MS);
+    installTimer = window.setTimeout(markInstallFailed, INSTALL_CONFIRM_MS);
   }
   notifyInstall();
   return outcome === "accepted";
 }
 
-/** "Didn't work?" — show the help even if the page couldn't detect the failure itself. */
-export function reportInstallFailed() {
-  if (installed) return;
+function markInstallFailed() {
   if (installTimer !== null) window.clearTimeout(installTimer);
+  installTimer = null;
+  if (installed) return;
   installing = false;
   installFailed = true;
   notifyInstall();
 }
 
+/** "Didn't work?" — show the help even if the page couldn't detect the failure itself. */
+export function reportInstallFailed() {
+  markInstallFailed();
+}
+
 export function clearInstallFailed() {
   installFailed = false;
+  writeAttempt(null);
   notifyInstall();
 }

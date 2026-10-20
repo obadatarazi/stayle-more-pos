@@ -19,6 +19,8 @@ export const storageKeys = {
   notifyPref: "style-more-notify",
   // Time the "Add to home screen" pill was dismissed; it comes back after a while.
   installDismissedAt: "style-more-install-dismissed",
+  // Set when the user accepts the install dialog, cleared on success; survives a reload while stuck.
+  installAttemptAt: "style-more-install-attempt",
 } as const;
 
 export const defaultSettings = { usdRate: 140 } as const;

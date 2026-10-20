@@ -29,3 +29,13 @@ export async function detectPhoneBrand(): Promise<PhoneBrand> {
   const match = navigator.userAgent.match(/Android [^;]+; ([^)]+?)(?: Build|\))/);
   return match ? brandFromModel(match[1]) : "other";
 }
+
+export function isSamsungInternet() {
+  return /SamsungBrowser/i.test(navigator.userAgent);
+}
+
+/** Android intent link that opens this page in Samsung Internet (falls back to the same page). */
+export function samsungInternetUrl() {
+  const { host, pathname, search, href } = window.location;
+  return `intent://${host}${pathname}${search}#Intent;scheme=https;package=com.sec.android.app.sbrowser;S.browser_fallback_url=${encodeURIComponent(href)};end`;
+}

@@ -562,11 +562,9 @@
     "installing": "Adding to the home screen…",
     "didntWork": "Didn’t work?",
     "help": {
-      "title": "The icon didn’t appear on the home screen?",
-      "why": "Your phone is most likely blocking Chrome from adding home-screen shortcuts. It’s not the app — allow it in the phone’s settings, then try again:",
+      "title": "Stuck on “Installing” or the icon didn’t appear?",
+      "why": "Chrome’s “Install” builds the app through Google Play services, which often don’t work in Syria or may be blocked, so the install hangs. These options don’t need Google:",
       "otherBrands": "Steps for other phone brands",
-      "updateChrome": "Also make sure Chrome is up to date in the Play Store.",
-      "menuRetry": "After allowing it: open Chrome’s ⋮ menu → “Add to Home screen” → Install.",
       "retry": "Try again",
       "brands": {
         "xiaomi": {
@@ -593,7 +591,14 @@
           "name": "Huawei / Honor",
           "steps": "Settings → Apps → Chrome → Permissions → “Create shortcuts” → Allow."
         }
-      }
+      },
+      "samsungInternetTitle": "Use Samsung Internet (easiest on Samsung)",
+      "samsungInternetSteps": "Open the site in Samsung Internet, then tap the ≡ menu → “Add page to” → “Home screen”. The app works offline just like in Chrome.",
+      "openSamsungInternet": "Open in Samsung Internet",
+      "shortcutTitle": "Add it as a shortcut from Chrome",
+      "shortcutSteps": "Chrome ⋮ menu → “Add to Home screen” → choose “Create shortcut” (not “Install”).",
+      "permissionTitle": "If adding shows an error: allow shortcuts",
+      "stuckChrome": "If Chrome keeps showing “Installing”: fully close Chrome from recent apps, then use one of the options above."
     }
   }
 }

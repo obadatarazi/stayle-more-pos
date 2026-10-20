@@ -1,13 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Button from "@/components/Button";
 import Icon from "@/components/Icon";
 import { useI18n } from "@/i18n/useI18n";
-import { detectPhoneBrand, type PhoneBrand } from "@/lib/deviceBrand";
+import { detectPhoneBrand, isSamsungInternet, samsungInternetUrl, type PhoneBrand } from "@/lib/deviceBrand";
 import { canPromptInstall, clearInstallFailed, promptInstall } from "@/lib/pwa";
 
 const BRANDS: Exclude<PhoneBrand, "other">[] = ["xiaomi", "samsung", "oppo", "realme", "vivo", "huawei"];
 
-/** Shown when adding to the home screen didn't work: why, and how to allow it on this phone. */
+function Option({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+  return (
+    <div className="mt-3 rounded-xl bg-white p-3 text-xs leading-5 text-slate-700">
+      <p className="flex items-center gap-2 font-bold text-slate-900">
+        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-white">{number}</span>
+        {title}
+      </p>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Shown when adding to the home screen didn't work. Chrome's "Install" builds the app through
+ * Google's servers and Play services, which can hang where those are blocked; the alternatives
+ * below don't need Google at all.
+ */
 export default function InstallHelp() {
   const { t } = useI18n();
   const [brand, setBrand] = useState<PhoneBrand>("other");
@@ -17,8 +33,11 @@ export default function InstallHelp() {
     void detectPhoneBrand().then(setBrand);
   }, []);
 
+  const inSamsungInternet = isSamsungInternet();
+  const offerSamsungInternet = brand === "samsung" && !inSamsungInternet;
   const others = BRANDS.filter((item) => item !== brand);
   const canRetry = canPromptInstall();
+  let step = 0;
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900" role="alert">
@@ -32,42 +51,60 @@ export default function InstallHelp() {
         </div>
       </div>
 
-      {brand !== "other" && (
-        <div className="mt-3 rounded-xl bg-white p-3 text-xs leading-5 text-slate-700">
-          <p className="font-bold text-slate-900">{t(`pwa.help.brands.${brand}.name`)}</p>
-          <p className="mt-1">{t(`pwa.help.brands.${brand}.steps`)}</p>
-        </div>
+      {offerSamsungInternet && (
+        <Option number={++step} title={t("pwa.help.samsungInternetTitle")}>
+          <p>{t("pwa.help.samsungInternetSteps")}</p>
+          <a
+            href={samsungInternetUrl()}
+            className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 text-sm font-semibold text-white"
+          >
+            <Icon name="exchange" className="size-4" />
+            {t("pwa.help.openSamsungInternet")}
+          </a>
+        </Option>
       )}
 
-      {(brand === "other" || showAll) && (
-        <ul className="mt-3 space-y-2 rounded-xl bg-white p-3 text-xs leading-5 text-slate-700">
-          {others.map((item) => (
-            <li key={item}>
-              <span className="font-bold text-slate-900">{t(`pwa.help.brands.${item}.name`)}: </span>
-              {t(`pwa.help.brands.${item}.steps`)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {brand !== "other" && !showAll && (
-        <button type="button" className="mt-2 text-xs font-bold underline" onClick={() => setShowAll(true)}>
-          {t("pwa.help.otherBrands")}
-        </button>
+      {inSamsungInternet ? (
+        <Option number={++step} title={t("pwa.help.samsungInternetTitle")}>
+          <p>{t("pwa.help.samsungInternetSteps")}</p>
+        </Option>
+      ) : (
+        <Option number={++step} title={t("pwa.help.shortcutTitle")}>
+          <p>{t("pwa.help.shortcutSteps")}</p>
+        </Option>
       )}
 
-      <p className="mt-3 text-xs leading-5">{t("pwa.help.updateChrome")}</p>
-      {!canRetry && <p className="mt-1 text-xs leading-5">{t("pwa.help.menuRetry")}</p>}
+      <Option number={++step} title={t("pwa.help.permissionTitle")}>
+        {brand !== "other" && (
+          <p>
+            <span className="font-bold text-slate-900">{t(`pwa.help.brands.${brand}.name`)}: </span>
+            {t(`pwa.help.brands.${brand}.steps`)}
+          </p>
+        )}
+        {(brand === "other" || showAll) && (
+          <ul className="mt-1 space-y-1.5">
+            {others.map((item) => (
+              <li key={item}>
+                <span className="font-bold text-slate-900">{t(`pwa.help.brands.${item}.name`)}: </span>
+                {t(`pwa.help.brands.${item}.steps`)}
+              </li>
+            ))}
+          </ul>
+        )}
+        {brand !== "other" && !showAll && (
+          <button type="button" className="mt-1 font-bold text-navy underline" onClick={() => setShowAll(true)}>
+            {t("pwa.help.otherBrands")}
+          </button>
+        )}
+      </Option>
+
+      <p className="mt-3 text-xs leading-5">{t("pwa.help.stuckChrome")}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button type="button" variant="secondary" className="min-h-10" onClick={clearInstallFailed}>
           {t("common.close")}
         </Button>
-        <Button
-          type="button"
-          className="min-h-10"
-          disabled={!canRetry}
-          onClick={() => void promptInstall()}
-        >
+        <Button type="button" className="min-h-10" disabled={!canRetry} onClick={() => void promptInstall()}>
           <Icon name="refresh" className="size-4" />
           {t("pwa.help.retry")}
         </Button>
