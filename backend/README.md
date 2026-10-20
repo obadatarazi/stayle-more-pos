@@ -15,6 +15,7 @@ Deployed at `https://style.lecadeaupk.com/api`
 | POST | `/sales` | yes | upsert sale; `409 Out of stock` if it exceeds remaining stock |
 | DELETE | `/sales/{id}` | yes | delete sale |
 | POST | `/expenses` | yes | upsert expense |
+| DELETE | `/expenses/{id}` | yes | delete expense |
 | POST | `/exchanges` | yes | upsert currency exchange (SYP ↔ USD) |
 | DELETE | `/exchanges/{id}` | yes | delete currency exchange |
 

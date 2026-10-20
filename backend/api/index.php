@@ -124,6 +124,13 @@ try {
         json_ok(['saved' => true]);
     }
 
+    if ($method === 'DELETE' && preg_match('#^/expenses/(\d+)$#', $path, $m)) {
+        require_auth($config);
+        $stmt = $pdo->prepare('DELETE FROM expenses WHERE id = :id');
+        $stmt->execute([':id' => (int)$m[1]]);
+        json_ok(['deleted' => $stmt->rowCount() > 0]);
+    }
+
     json_error('Not found', 404, ['method' => $method, 'path' => $path]);
 } catch (Throwable $e) {
     json_error('Server error', 500, $e->getMessage());

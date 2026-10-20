@@ -150,3 +150,7 @@ export async function apiUpsertExpense(expense: unknown) {
     body: JSON.stringify(expense),
   });
 }
+
+export async function apiDeleteExpense(id: number) {
+  return apiRequest(`/expenses/${id}`, { method: "DELETE" });
+}

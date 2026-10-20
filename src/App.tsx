@@ -4,6 +4,7 @@ import {
   deleteCloudSale,
   fetchCloudStore,
   insertCloudExpense,
+  deleteCloudExpense,
   insertCloudSale,
   replaceCloudStore,
   subscribeCloudStore,
@@ -214,12 +215,7 @@ const initialSales: Sale[] = [
   { id: 5, date: "2026-10-01", sku: "SM-SCR-05", quantity: 8 },
 ];
 
-const initialExpenses: Expense[] = [
-  { id: 1, category: "إيجار المحل", categoryAr: "إيجار المحل", amount: 500, dueDate: "2026-10-01" },
-  { id: 2, category: "رواتب الموظفين", categoryAr: "رواتب الموظفين", amount: 400, dueDate: "2026-10-01" },
-  { id: 3, category: "الكهرباء والإنترنت", categoryAr: "الكهرباء والإنترنت", amount: 50, dueDate: "2026-10-08" },
-  { id: 4, category: "شراء بضاعة جديدة", categoryAr: "شراء بضاعة جديدة", amount: 80, dueDate: "2026-10-15" },
-];
+const initialExpenses: Expense[] = [];
 
 const iconPaths: Record<IconName, ReactNode> = {
   exchange: <><path d="M4 8h14l-4-4" /><path d="M20 16H6l4 4" /></>,
@@ -673,8 +669,13 @@ function App() {
   const [sellerFilter, setSellerFilter] = useState<string>("all");
   const [reportMonth, setReportMonth] = useState(currentMonthKey);
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem("style-more-expenses");
-    return saved ? JSON.parse(saved) : initialExpenses;
+    // Start empty; cloud sync is the source of truth after login.
+    try {
+      localStorage.removeItem("style-more-expenses");
+    } catch {
+      // ignore
+    }
+    return initialExpenses;
   });
   const [selectedSku, setSelectedSku] = useState(initialProducts[0].sku);
   const [quantity, setQuantity] = useState(1);
@@ -702,7 +703,8 @@ function App() {
   const cloudReady = useRef(false);
   const reloadTimer = useRef<number | null>(null);
   const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseDate, setExpenseDate] = useState("2026-10-31");
+  const [expenseDate, setExpenseDate] = useState(todayISO());
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -1121,20 +1123,41 @@ function App() {
     }
   };
 
-  const addExpense = (event: FormEvent) => {
+  const resetExpenseForm = () => {
+    setEditingExpenseId(null);
+    setExpenseCategory("إيجار المحل");
+    setExpenseAmount("");
+    setExpenseDate(todayISO());
+  };
+
+  const startEditExpense = (expense: Expense) => {
+    setEditingExpenseId(expense.id);
+    setExpenseCategory(expense.categoryAr || expense.category);
+    setExpenseAmount(String(expense.amount));
+    setExpenseDate(expense.dueDate);
+    setActiveTab("expenses");
+  };
+
+  const saveExpense = (event: FormEvent) => {
     event.preventDefault();
     const amount = Number(expenseAmount);
     if (!amount || amount <= 0) return;
     const expense: Expense = {
-      id: Date.now(),
+      id: editingExpenseId ?? Date.now(),
       category: expenseCategory,
       categoryAr: expenseCategory,
       amount,
       dueDate: expenseDate,
     };
-    setExpenses((current) => [...current, expense]);
-    setExpenseAmount("");
-    showNotice("تمت إضافة المصروف بنجاح.");
+    setExpenses((current) => {
+      if (editingExpenseId != null) {
+        return current.map((item) => (item.id === editingExpenseId ? expense : item));
+      }
+      return [...current, expense];
+    });
+    const wasEdit = editingExpenseId != null;
+    resetExpenseForm();
+    showNotice(wasEdit ? "تم تحديث المصروف بنجاح." : "تمت إضافة المصروف بنجاح.");
     if (isCloudEnabled) {
       setSyncStatus("saving");
       void insertCloudExpense(expense)
@@ -1143,6 +1166,22 @@ function App() {
           console.error(error);
           setSyncStatus("error");
           showNotice("تم الحفظ محلياً لكن فشل الرفع للخادم.");
+        });
+    }
+  };
+
+  const deleteExpense = (id: number) => {
+    setExpenses((current) => current.filter((item) => item.id !== id));
+    if (editingExpenseId === id) resetExpenseForm();
+    showNotice("تم حذف المصروف بنجاح.");
+    if (isCloudEnabled) {
+      setSyncStatus("saving");
+      void deleteCloudExpense(id)
+        .then(() => setSyncStatus("online"))
+        .catch((error) => {
+          console.error(error);
+          setSyncStatus("error");
+          showNotice("تم الحذف محلياً لكن فشل التحديث على الخادم.");
         });
     }
   };
@@ -1772,7 +1811,11 @@ function App() {
               setAmount={setExpenseAmount}
               date={expenseDate}
               setDate={setExpenseDate}
-              onSubmit={addExpense}
+              editingId={editingExpenseId}
+              onSubmit={saveExpense}
+              onEdit={startEditExpense}
+              onCancelEdit={resetExpenseForm}
+              onDelete={deleteExpense}
             />
           )}
           {activeTab === "reports" && (
@@ -3845,7 +3888,11 @@ function ExpensesPage({
   setAmount,
   date,
   setDate,
+  editingId,
   onSubmit,
+  onEdit,
+  onCancelEdit,
+  onDelete,
 }: {
   expenses: Expense[];
   category: string;
@@ -3854,23 +3901,38 @@ function ExpensesPage({
   setAmount: (amount: string) => void;
   date: string;
   setDate: (date: string) => void;
+  editingId: number | null;
   onSubmit: (event: FormEvent) => void;
+  onEdit: (expense: Expense) => void;
+  onCancelEdit: () => void;
+  onDelete: (id: number) => void;
 }) {
+  const [confirmId, setConfirmId] = useState<number | null>(null);
   const total = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const isEditing = editingId != null;
+  const confirmTarget = expenses.find((item) => item.id === confirmId);
+  const categories = ["إيجار المحل", "رواتب الموظفين", "الكهرباء والإنترنت", "شراء بضاعة جديدة", "مصروف آخر"];
+
   return (
     <>
       <PageIntro eyebrow="التكاليف" title="المصاريف" description="نظّم تكاليف التشغيل الشهرية لتظهر مباشرة ضمن حساب صافي الربح الحقيقي." />
       <div className="grid gap-4 xl:grid-cols-[0.75fr_1.25fr] md:gap-5">
         <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 md:p-6">
           <div className="mb-5 flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-orange-50 text-orange-700"><Icon name="wallet" /></span>
-            <div><h2 className="font-bold">إضافة مصروف</h2><p className="text-xs text-slate-500">تكلفة تشغيلية جديدة</p></div>
+            <span className={`grid size-11 place-items-center rounded-xl ${isEditing ? "bg-brand text-navy" : "bg-orange-50 text-orange-700"}`}>
+              <Icon name={isEditing ? "edit" : "wallet"} />
+            </span>
+            <div>
+              <h2 className="font-bold">{isEditing ? "تعديل مصروف" : "إضافة مصروف"}</h2>
+              <p className="text-xs text-slate-500">{isEditing ? "حدّث البند أو المبلغ أو التاريخ" : "تكلفة تشغيلية جديدة"}</p>
+            </div>
           </div>
           <div className="space-y-4">
             <label className="block">
               <FieldLabel>بند المصروف</FieldLabel>
               <select className={inputClass} value={category} onChange={(event) => setCategory(event.target.value)}>
-                {["إيجار المحل", "رواتب الموظفين", "الكهرباء والإنترنت", "شراء بضاعة جديدة", "مصروف آخر"].map((item) => <option key={item}>{item}</option>)}
+                {categories.map((item) => <option key={item}>{item}</option>)}
+                {!categories.includes(category) && category ? <option value={category}>{category}</option> : null}
               </select>
             </label>
             <label className="block">
@@ -3881,7 +3943,17 @@ function ExpensesPage({
               <FieldLabel>تاريخ الاستحقاق</FieldLabel>
               <input type="date" className={inputClass} value={date} onChange={(event) => setDate(event.target.value)} required />
             </label>
-            <Button type="submit" className="w-full min-h-12"><Icon name="plus" className="size-4" /> إضافة المصروف</Button>
+            <div className={`grid gap-2 ${isEditing ? "grid-cols-2" : ""}`}>
+              {isEditing && (
+                <Button type="button" variant="secondary" className="min-h-12" onClick={onCancelEdit}>
+                  إلغاء
+                </Button>
+              )}
+              <Button type="submit" className="w-full min-h-12">
+                <Icon name={isEditing ? "check" : "plus"} className="size-4" />
+                {isEditing ? "حفظ التعديل" : "إضافة المصروف"}
+              </Button>
+            </div>
           </div>
         </form>
 
@@ -3891,22 +3963,64 @@ function ExpensesPage({
             <div className="text-left"><p className="text-xs text-slate-400">الإجمالي</p><p className="text-lg font-bold text-slate-950">{money(total)}</p></div>
           </div>
           <div className="divide-y divide-slate-100">
-            {expenses.map((expense) => (
-              <div key={expense.id} className="flex items-center gap-3 px-3 py-3.5 md:gap-4 md:px-6 md:py-4">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Icon name={expense.category.includes("بضاعة") ? "box" : expense.category.includes("التسويق") ? "sparkles" : expense.category.includes("الكهرباء") ? "profit" : "wallet"} className="size-4" /></span>
+            {expenses.length ? expenses.map((expense) => (
+              <div
+                key={expense.id}
+                className={`flex items-center gap-2.5 px-3 py-3.5 md:gap-3 md:px-6 md:py-4 ${editingId === expense.id ? "bg-brand/40" : ""}`}
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                  <Icon
+                    name={expense.category.includes("بضاعة") ? "box" : expense.category.includes("التسويق") ? "sparkles" : expense.category.includes("الكهرباء") ? "profit" : "wallet"}
+                    className="size-4"
+                  />
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-slate-800">{expense.categoryAr}</p>
                   <p className="mt-0.5 text-xs text-slate-400">
                     {shortDate(expense.dueDate)}
+                    {isRentExpense(expense) && " · إيجار"}
                     {isStockPurchase(expense) && " · لا يُخصم من صافي الربح"}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-bold text-slate-900">{money(expense.amount)}</p>
+                <button
+                  type="button"
+                  className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 active:bg-brand active:text-navy"
+                  onClick={() => onEdit(expense)}
+                  aria-label="تعديل المصروف"
+                  title="تعديل"
+                >
+                  <Icon name="edit" className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 active:bg-coral-soft active:text-coral-dark"
+                  onClick={() => setConfirmId(expense.id)}
+                  aria-label="حذف المصروف"
+                  title="حذف"
+                >
+                  <Icon name="trash" className="size-4" />
+                </button>
               </div>
-            ))}
+            )) : (
+              <p className="px-5 py-10 text-center text-sm text-slate-500">لا توجد مصاريف مسجّلة بعد. أضف أول بند من النموذج.</p>
+            )}
           </div>
         </div>
       </div>
+      {confirmTarget && (
+        <ConfirmDialog
+          title="تأكيد الحذف"
+          message={`هل أنت متأكد من حذف المصروف «${confirmTarget.categoryAr}» بمبلغ ${money(confirmTarget.amount)}؟ لا يمكن التراجع عن هذا الإجراء.`}
+          confirmLabel="نعم، احذف"
+          cancelLabel="إلغاء"
+          onConfirm={() => {
+            onDelete(confirmTarget.id);
+            setConfirmId(null);
+          }}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </>
   );
 }

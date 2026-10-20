@@ -6,6 +6,7 @@ import {
   apiUpsertExchange,
   apiDeleteExchange,
   apiUpsertExpense,
+  apiDeleteExpense,
   apiUpsertProduct,
   apiUpsertSale,
   isCloudEnabled,
@@ -169,6 +170,11 @@ export async function deleteCloudSale(id: number) {
 export async function insertCloudExpense(expense: CloudExpense) {
   if (!isCloudEnabled) return;
   await apiUpsertExpense(expense);
+}
+
+export async function deleteCloudExpense(id: number) {
+  if (!isCloudEnabled) return;
+  await apiDeleteExpense(id);
 }
 
 export async function insertCloudExchange(exchange: CloudExchange) {
