@@ -22,7 +22,6 @@ export default function SalesList({
     <div className="divide-y divide-slate-100">
       {sales.map((sale) => {
         const product = products.find((item) => item.sku === sale.sku);
-        if (!product) return null;
         const price = salePrice(sale, product);
         const lineRevenue = price * sale.quantity;
         const lineProfit = (price - saleCost(sale, product)) * sale.quantity;
@@ -32,7 +31,7 @@ export default function SalesList({
               <Icon name="receipt" className="size-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-800">{product.nameAr}</p>
+              <p className="truncate text-sm font-bold text-slate-800">{product?.nameAr || sale.sku}</p>
               <p className="mt-0.5 text-xs text-slate-400">
                 {shortDate(sale.date)} · ×{sale.quantity}
                 {" · "}

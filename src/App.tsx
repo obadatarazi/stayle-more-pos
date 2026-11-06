@@ -149,6 +149,10 @@ export default function App() {
   const [quickSaleSku, setQuickSaleSku] = useState<string | undefined>(undefined);
   const [productModal, setProductModal] = useState<"add" | Product | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; label: string } | null>(null);
+  const [confirmDeleteProducts, setConfirmDeleteProducts] = useState<{
+    skus: string[];
+    label: string;
+  } | null>(null);
   const [exchanges, setExchanges] = useState<Exchange[]>(() => {
     try {
       const saved = localStorage.getItem(storageKeys.exchanges);
@@ -473,6 +477,46 @@ export default function App() {
         : t("notices.quickSaleRemoved", { name: next.nameAr }),
     );
     enqueue({ type: "product.upsert", product: next });
+  };
+
+  const requestDeleteProducts = (skus: string[]) => {
+    const unique = [...new Set(skus)].filter((sku) => products.some((item) => item.sku === sku));
+    if (!unique.length) return;
+    if (unique.length === 1) {
+      const product = products.find((item) => item.sku === unique[0]);
+      setConfirmDeleteProducts({
+        skus: unique,
+        label: product?.nameAr || unique[0],
+      });
+      return;
+    }
+    setConfirmDeleteProducts({
+      skus: unique,
+      label: t("products.deleteManyLabel", { count: unique.length }),
+    });
+  };
+
+  const deleteProducts = (skus: string[]) => {
+    const unique = [...new Set(skus)];
+    if (!unique.length) return;
+    const label =
+      unique.length === 1
+        ? products.find((item) => item.sku === unique[0])?.nameAr || unique[0]
+        : "";
+    setProducts((current) => {
+      const next = current.filter((item) => !unique.includes(item.sku));
+      if (unique.includes(selectedSku)) {
+        setSelectedSku(next[0]?.sku || selectedSku);
+      }
+      return next;
+    });
+    setConfirmDeleteProducts(null);
+    showNotice(
+      unique.length === 1
+        ? t("notices.productDeleted", { name: label })
+        : t("notices.productsDeleted", { count: unique.length }),
+    );
+    enqueue(...unique.map((sku) => ({ type: "product.delete" as const, sku })));
   };
 
   const resetExpenseForm = () => {
@@ -1120,6 +1164,7 @@ export default function App() {
               onToggleQuickSale={toggleQuickSale}
               onBulkUpdate={bulkUpdateProducts}
               onSavePrice={saveProductPrice}
+              onDeleteProducts={requestDeleteProducts}
               usdRate={settings.usdRate}
               initialSearch={searchQuery}
             />
@@ -1262,6 +1307,20 @@ export default function App() {
               cancelLabel={t("common.cancel")}
               onConfirm={() => deleteSale(confirmDelete.id)}
               onCancel={() => setConfirmDelete(null)}
+            />
+          )}
+          {confirmDeleteProducts && (
+            <ConfirmDialog
+              title={t("common.confirmDelete")}
+              message={
+                confirmDeleteProducts.skus.length === 1
+                  ? t("products.confirmDeleteOne", { name: confirmDeleteProducts.label })
+                  : t("products.confirmDeleteMany", { count: confirmDeleteProducts.skus.length })
+              }
+              confirmLabel={t("common.yesDelete")}
+              cancelLabel={t("common.cancel")}
+              onConfirm={() => deleteProducts(confirmDeleteProducts.skus)}
+              onCancel={() => setConfirmDeleteProducts(null)}
             />
           )}
         </main>

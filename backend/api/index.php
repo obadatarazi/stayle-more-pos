@@ -88,6 +88,17 @@ try {
         json_ok(['saved' => true]);
     }
 
+    if ($method === 'DELETE' && preg_match('#^/products/([^/]+)$#', $path, $m)) {
+        require_auth($config);
+        $sku = trim((string)$m[1]);
+        if ($sku === '') {
+            json_error('Product sku is required', 422);
+        }
+        $stmt = $pdo->prepare('DELETE FROM products WHERE sku = :sku');
+        $stmt->execute([':sku' => $sku]);
+        json_ok(['deleted' => $stmt->rowCount() > 0, 'sku' => $sku]);
+    }
+
     if ($method === 'POST' && $path === '/sales') {
         require_auth($config);
         $body = read_json_body();

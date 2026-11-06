@@ -18,6 +18,7 @@ export default function ProductsPage({
   onToggleQuickSale,
   onBulkUpdate,
   onSavePrice,
+  onDeleteProducts,
   usdRate,
   initialSearch = "",
 }: {
@@ -29,6 +30,7 @@ export default function ProductsPage({
   onToggleQuickSale: (sku: string) => void;
   onBulkUpdate: (updated: Product[]) => void;
   onSavePrice: (product: Product) => void;
+  onDeleteProducts: (skus: string[]) => void;
   usdRate: number;
   initialSearch?: string;
 }) {
@@ -91,6 +93,13 @@ export default function ProductsPage({
   useEffect(() => {
     setQuery(initialSearch);
   }, [initialSearch]);
+
+  useEffect(() => {
+    setSelected((current) => {
+      const next = new Set([...current].filter((sku) => products.some((item) => item.sku === sku)));
+      return next.size === current.size ? current : next;
+    });
+  }, [products]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -272,9 +281,16 @@ export default function ProductsPage({
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-coral-border bg-coral-soft px-3 py-2.5 md:px-4">
             <p className="text-sm font-semibold text-navy">{t("products.selectedCount", { count: selected.size })}</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="ghost" className="min-h-10 px-3 text-xs" onClick={() => setSelected(new Set())}>{t("products.clearSelection")}</Button>
               <Button className="min-h-10 px-3 text-xs" onClick={() => setPriceModalOpen(true)}>{t("products.adjustSelectedPrices")}</Button>
+              <Button
+                variant="secondary"
+                className="min-h-10 px-3 text-xs text-coral-dark"
+                onClick={() => onDeleteProducts([...selected])}
+              >
+                <Icon name="trash" className="size-3.5" /> {t("products.deleteSelected")}
+              </Button>
             </div>
           </div>
         )}
@@ -331,7 +347,7 @@ export default function ProductsPage({
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <Button
                     variant={product.quickSale ? "primary" : "secondary"}
                     className="min-h-12 px-2 text-xs"
@@ -339,8 +355,15 @@ export default function ProductsPage({
                   >
                     {product.quickSale ? t("products.quickActive") : t("common.quickSale")}
                   </Button>
-                  <Button variant="secondary" className="min-h-12" onClick={() => onEdit(product)}><Icon name="edit" className="size-4" /> {t("common.edit")}</Button>
                   <Button className="min-h-12" onClick={() => onSale(product.sku)} disabled={remaining < 1}><Icon name="plus" className="size-4" /> {remaining < 1 ? t("common.outOfStock") : t("common.sell")}</Button>
+                  <Button variant="secondary" className="min-h-12" onClick={() => onEdit(product)}><Icon name="edit" className="size-4" /> {t("common.edit")}</Button>
+                  <Button
+                    variant="secondary"
+                    className="min-h-12 text-coral-dark"
+                    onClick={() => onDeleteProducts([product.sku])}
+                  >
+                    <Icon name="trash" className="size-4" /> {t("common.delete")}
+                  </Button>
                 </div>
               </div>
             );
@@ -425,6 +448,14 @@ export default function ProductsPage({
                         </button>
                         <button className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-brand hover:text-navy disabled:cursor-not-allowed disabled:opacity-40" onClick={() => onSale(product.sku)} disabled={remaining < 1} aria-label={t("products.sellItem", { name: product.nameAr })} title={remaining < 1 ? t("products.stockDepleted") : t("common.sell")}>
                           <Icon name="receipt" className="size-4" />
+                        </button>
+                        <button
+                          className="rounded-lg border border-slate-200 p-2 text-coral-dark hover:bg-coral-soft"
+                          onClick={() => onDeleteProducts([product.sku])}
+                          aria-label={t("products.deleteItem", { name: product.nameAr })}
+                          title={t("common.delete")}
+                        >
+                          <Icon name="trash" className="size-4" />
                         </button>
                       </div>
                     </td>

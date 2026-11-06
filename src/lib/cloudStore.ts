@@ -1,5 +1,6 @@
 import {
   apiDeleteSale,
+  apiDeleteProduct,
   apiGetStore,
   apiPutStore,
   apiPutSettings,
@@ -157,6 +158,11 @@ export async function fetchCloudStore(): Promise<CloudStore> {
 export async function upsertCloudProduct(product: CloudProduct) {
   if (!isCloudEnabled) return;
   await apiUpsertProduct(product);
+}
+
+export async function deleteCloudProduct(sku: string) {
+  if (!isCloudEnabled) return;
+  await apiDeleteProduct(sku);
 }
 
 export async function insertCloudSale(sale: CloudSale) {

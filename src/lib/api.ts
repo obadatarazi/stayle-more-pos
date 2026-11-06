@@ -172,6 +172,10 @@ export async function apiUpsertProduct(product: unknown) {
   });
 }
 
+export async function apiDeleteProduct(sku: string) {
+  return apiRequest(`/products/${encodeURIComponent(sku)}`, { method: "DELETE" });
+}
+
 export async function apiUpsertSale(sale: unknown) {
   return apiRequest("/sales", {
     method: "POST",

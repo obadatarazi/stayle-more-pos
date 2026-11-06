@@ -4,6 +4,7 @@ import { ApiError, NetworkError, isCloudEnabled } from "./api";
 import {
   deleteCloudExchange,
   deleteCloudExpense,
+  deleteCloudProduct,
   deleteCloudSale,
   insertCloudExchange,
   insertCloudExpense,
@@ -28,6 +29,7 @@ import { isDeviceOffline, isOnline, subscribeNetwork } from "./networkStatus";
 
 export type OutboxOp =
   | { type: "product.upsert"; product: CloudProduct }
+  | { type: "product.delete"; sku: string }
   | { type: "sale.upsert"; sale: CloudSale }
   | { type: "sale.delete"; id: number }
   | { type: "expense.upsert"; expense: CloudExpense }
@@ -183,6 +185,8 @@ function opKey(op: OutboxOp): string {
   switch (op.type) {
     case "product.upsert":
       return `product:${op.product.sku}`;
+    case "product.delete":
+      return `product:${op.sku}`;
     case "sale.upsert":
       return `sale:${op.sale.id}`;
     case "sale.delete":
@@ -242,6 +246,8 @@ async function send(op: OutboxOp) {
   switch (op.type) {
     case "product.upsert":
       return upsertCloudProduct(op.product);
+    case "product.delete":
+      return deleteCloudProduct(op.sku);
     case "sale.upsert":
       return insertCloudSale(op.sale);
     case "sale.delete":
