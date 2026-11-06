@@ -129,8 +129,7 @@ export default function App() {
   const [selectedSku, setSelectedSku] = useState(initialProducts[0].sku);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(initialProducts[0].price);
-  // Shop start date for this inventory cycle (1 Nov). Change in quick sale if needed.
-  const [saleDate, setSaleDate] = useState("2026-11-01");
+  const [saleDate, setSaleDate] = useState(todayISO);
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const noticeTimer = useRef<number | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -357,6 +356,7 @@ export default function App() {
       setSelectedSku(preferred.sku);
       setUnitPrice(preferred.price);
     }
+    setSaleDate(todayISO());
     setQuantity(1);
     setQuickSaleSku(requested?.sku);
     setQuickSaleOpen(true);

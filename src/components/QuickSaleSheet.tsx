@@ -27,6 +27,7 @@ export default function QuickSaleSheet({
 }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
+  const [showDate, setShowDate] = useState(false);
   const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
   const [draftTotals, setDraftTotals] = useState<Record<string, string>>({});
   const [draftCartTotal, setDraftCartTotal] = useState<string | null>(null);
@@ -208,15 +209,6 @@ export default function QuickSaleSheet({
           </div>
 
           <div className="space-y-2 px-3 sm:px-4">
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-bold text-slate-500">{t("sales.date")}</span>
-              <input
-                type="date"
-                className={`${inputClass} min-h-11 py-2`}
-                value={saleDate}
-                onChange={(event) => setSaleDate(event.target.value)}
-              />
-            </label>
             <div className="relative">
               <Icon name="search" className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -226,6 +218,38 @@ export default function QuickSaleSheet({
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
+            {showDate ? (
+              <label className="block rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+                <span className="mb-1 flex items-center justify-between gap-2 text-[11px] font-bold text-slate-500">
+                  <span>{t("quickSale.saleDate")}</span>
+                  <button
+                    type="button"
+                    className="font-semibold text-navy"
+                    onClick={() => setShowDate(false)}
+                  >
+                    {t("quickSale.hideDate")}
+                  </button>
+                </span>
+                <input
+                  type="date"
+                  className={`${inputClass} min-h-11 bg-white py-2`}
+                  value={saleDate}
+                  onChange={(event) => setSaleDate(event.target.value)}
+                />
+              </label>
+            ) : (
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-right text-[11px] text-slate-500"
+                onClick={() => setShowDate(true)}
+              >
+                <span>
+                  {t("quickSale.saleDate")}: <strong className="text-slate-700" dir="ltr">{saleDate}</strong>
+                  <span className="text-slate-400"> · {t("quickSale.changeDateOptional")}</span>
+                </span>
+                <Icon name="calendar" className="size-4 shrink-0 text-slate-400" />
+              </button>
+            )}
           </div>
         </div>
 

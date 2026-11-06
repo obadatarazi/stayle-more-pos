@@ -407,6 +407,9 @@
   "quickSale": {
     "title": "بيع سريع",
     "subtitle": "أضف للسلة ثم احسب الباقي",
+    "saleDate": "تاريخ البيع",
+    "changeDateOptional": "اختياري — غيّر التاريخ",
+    "hideDate": "إخفاء",
     "searchPlaceholder": "ابحث عن منتج لإضافته...",
     "tapToAdd": "اضغط منتجاً لإضافته للسلة",
     "remainingCart": "متبقي {stock} · في السلة {cart}",

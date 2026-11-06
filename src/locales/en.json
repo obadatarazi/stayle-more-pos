@@ -407,6 +407,9 @@
   "quickSale": {
     "title": "Quick sale",
     "subtitle": "Add to cart then calculate change",
+    "saleDate": "Sale date",
+    "changeDateOptional": "optional — change date",
+    "hideDate": "Hide",
     "searchPlaceholder": "Search for a product to add...",
     "tapToAdd": "Tap a product to add it to the cart",
     "remainingCart": "{stock} left · {cart} in cart",
