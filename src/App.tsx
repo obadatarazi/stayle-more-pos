@@ -619,9 +619,8 @@ export default function App() {
         "سعر التكلفة بالدولار": product.costUsd,
         "سعر الصرف": product.usdRate,
         "ربح القطعة": product.price - product.cost,
-        "المخزون الافتتاحي": product.initialStock,
         "الكمية المباعة": sold,
-        "المخزون الحالي": current,
+        "المخزون": current,
         "حد إعادة الطلب": product.reorderLevel,
         "بيع سريع": product.quickSale ? "نعم" : "لا",
         "الحالة": current <= product.reorderLevel ? "بحاجة لطلب" : "متوفر",
@@ -880,7 +879,15 @@ export default function App() {
           price: Number(cellValue(row, ["سعر البيع", "سعر البيع (Price)"]) || 0),
           costUsd: Number(cellValue(row, ["سعر التكلفة بالدولار"]) || 0),
           usdRate: Number(cellValue(row, ["سعر الصرف"]) || 0),
-          initialStock: Number(cellValue(row, ["المخزون الافتتاحي"]) || 0),
+          initialStock: (() => {
+            const opening = cellValue(row, ["المخزون الافتتاحي"]);
+            if (opening !== undefined && opening !== null && String(opening).trim() !== "") {
+              return Number(opening) || 0;
+            }
+            const current = Number(cellValue(row, ["المخزون", "المخزون الحالي"]) || 0);
+            const sold = Number(cellValue(row, ["الكمية المباعة"]) || 0);
+            return current + sold;
+          })(),
           reorderLevel: Number(cellValue(row, ["حد إعادة الطلب"]) || 0),
           quickSale: ["نعم", "yes", "1", "true"].includes(
             String(cellValue(row, ["بيع سريع"]) || "").trim().toLowerCase(),
@@ -1238,6 +1245,7 @@ export default function App() {
               product={productModal === "add" ? null : productModal}
               usdRate={settings.usdRate}
               categories={allCategories(products)}
+              soldQty={productModal === "add" ? 0 : soldBySku[productModal.sku] || 0}
               onClose={() => setProductModal(null)}
               onSave={saveProduct}
             />

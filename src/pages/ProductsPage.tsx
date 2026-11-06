@@ -80,7 +80,6 @@ export default function ProductsPage({
       t("export.price"),
       t("export.unitProfit"),
       t("export.margin"),
-      t("export.initialStock"),
       t("export.soldQty"),
       t("export.currentStock"),
       t("export.status"),
@@ -416,7 +415,6 @@ export default function ProductsPage({
                     <td className="px-4 py-4 text-sm font-semibold tabular-nums text-navy">
                       {formatMargin(product.price - product.cost, product.price)}
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-600">{product.initialStock}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">{sold}</td>
                     <td className={`px-4 py-4 text-sm font-bold ${needsReorder ? "text-coral-dark" : "text-slate-800"}`}>{remaining}</td>
                     <td className="px-4 py-4">

@@ -14,6 +14,7 @@ export default function ProductModal({
   onClose,
   onSave,
   usdRate,
+  soldQty = 0,
 }: {
   mode: "add" | "edit";
   product: Product | null;
@@ -21,8 +22,13 @@ export default function ProductModal({
   onClose: () => void;
   onSave: (product: Product, mode: "add" | "edit") => void;
   usdRate: number;
+  /** Units already sold — edit form shows current stock, then stores opening = current + sold. */
+  soldQty?: number;
 }) {
   const { t } = useI18n();
+  const sold = Math.max(0, soldQty);
+  const currentStock =
+    mode === "edit" && product ? Math.max(0, product.initialStock - sold) : product?.initialStock ?? "";
   const [nameAr, setNameAr] = useState(product?.nameAr || "");
   const [category, setCategory] = useState(product?.category || categories[0] || t("common.other"));
   const [cost, setCost] = useState(String(product?.cost ?? ""));
@@ -31,7 +37,7 @@ export default function ProductModal({
   const [rate, setRate] = useState(String(product?.usdRate || usdRate || ""));
   const usdCosted = Number(costUsd) > 0;
   const derivedCost = costFromUsd(Number(costUsd), Number(rate) || 0);
-  const [initialStock, setInitialStock] = useState(String(product?.initialStock ?? ""));
+  const [stock, setStock] = useState(String(currentStock));
   const [quickSale, setQuickSale] = useState(Boolean(product?.quickSale));
 
   const handleSubmit = (event: FormEvent) => {
@@ -41,9 +47,11 @@ export default function ProductModal({
     const parsedCostUsd = Number(costUsd || 0);
     const parsedRate = Number(rate || 0);
     if (parsedCostUsd > 0 && !(parsedRate > 0)) return;
-    const parsedStock = Number(initialStock);
+    const parsedStock = Number(stock);
     if (!nameAr.trim() || (!usdCosted && Number.isNaN(parsedCost)) || Number.isNaN(parsedPrice) || Number.isNaN(parsedCostUsd) || Number.isNaN(parsedStock)) return;
     const sku = product?.sku || `SM-${Date.now().toString().slice(-6)}`;
+    // Edit: field is on-hand stock; persist as opening so remaining = stock after sold qty.
+    const initialStock = mode === "edit" ? Math.max(0, parsedStock) + sold : Math.max(0, parsedStock);
     onSave(
       {
         sku,
@@ -54,7 +62,7 @@ export default function ProductModal({
         price: parsedPrice,
         costUsd: parsedCostUsd,
         usdRate: parsedCostUsd > 0 ? parsedRate : 0,
-        initialStock: parsedStock,
+        initialStock,
         reorderLevel: product?.reorderLevel ?? DEFAULT_REORDER_LEVEL,
         quickSale,
       },
@@ -94,7 +102,7 @@ export default function ProductModal({
           </label>
           <label>
             <FieldLabel>{t("productModal.openingStock")}</FieldLabel>
-            <input type="number" min="0" className={inputClass} value={initialStock} onChange={(event) => setInitialStock(event.target.value)} required />
+            <input type="number" min="0" className={inputClass} value={stock} onChange={(event) => setStock(event.target.value)} required />
           </label>
           <label>
             <FieldLabel>{t("productModal.costUsd")}</FieldLabel>
