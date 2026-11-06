@@ -21,7 +21,7 @@ export default function DashboardPage({
   onExport,
   onImport,
 }: {
-  metrics: { revenue: number; grossProfit: number; fixedExpenses: number; netProfit: number };
+  metrics: { revenue: number; grossProfit: number; fixedExpenses: number; stockPurchases: number; netProfit: number; cashOnHand: number };
   sales: Sale[];
   soldBySku: Record<string, number>;
   onNewSale: () => void;
@@ -95,6 +95,19 @@ export default function DashboardPage({
             <span className={`mt-1 block text-xs ${item.primary ? "text-brand" : "text-slate-400"}`}>{item.hint}</span>
           </button>
         ))}
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-navy bg-navy p-4 text-white md:mt-5 md:p-5">
+        <p className="text-xs font-semibold text-brand">{t("dashboard.cashOnHand")}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums md:text-3xl">{money(metrics.cashOnHand)}</p>
+        <p className="mt-2 text-xs text-white/75">{t("dashboard.cashOnHandHint")}</p>
+        <p className="mt-1 text-[11px] text-white/55">
+          {t("dashboard.cashOnHandBreakdown", {
+            sales: money(metrics.revenue),
+            expenses: money(metrics.fixedExpenses),
+            stock: money(metrics.stockPurchases),
+          })}
+        </p>
       </section>
 
       <section className="mt-4 grid grid-cols-2 gap-3 xl:grid-cols-4 md:mt-5 md:gap-4">

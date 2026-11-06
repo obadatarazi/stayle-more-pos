@@ -288,7 +288,17 @@ export default function App() {
     const fixedExpenses = expenses
       .filter((expense) => !isStockPurchase(expense))
       .reduce((total, expense) => total + expense.amount, 0);
-    return { revenue, grossProfit, fixedExpenses, netProfit: grossProfit - fixedExpenses };
+    const stockPurchases = expenses
+      .filter(isStockPurchase)
+      .reduce((total, expense) => total + expense.amount, 0);
+    return {
+      revenue,
+      grossProfit,
+      fixedExpenses,
+      stockPurchases,
+      netProfit: grossProfit - fixedExpenses,
+      cashOnHand: revenue - fixedExpenses - stockPurchases,
+    };
   }, [sales, expenses, products]);
 
   if (!isAuthenticated || !authUser) {
@@ -838,6 +848,7 @@ export default function App() {
       { "البند": "شراء بضاعة (لا يُخصم من الربح)", "القيمة": stockTotal },
       { "البند": "الإيجار", "القيمة": rentTotal },
       { "البند": "صافي الربح", "القيمة": Math.round((profit - expenseTotal) * 100) / 100 },
+      { "البند": "النقد في اليد", "القيمة": Math.round((revenue - expenseTotal - stockTotal) * 100) / 100 },
       { "البند": "الأكثر مبيعاً", "القيمة": topProducts[0]?.["اسم المادة"] || "-" },
       { "البند": "الأعلى مبيعاً من البائعين", "القيمة": sellerRows[0]?.["البائع"] || "-" },
     ];

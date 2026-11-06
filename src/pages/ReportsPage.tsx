@@ -85,6 +85,7 @@ export default function ReportsPage({
   const stockTotal = monthExpenses.filter(isStockPurchase).reduce((sum, expense) => sum + expense.amount, 0);
   const rentTotal = monthExpenses.filter(isRentExpense).reduce((sum, expense) => sum + expense.amount, 0);
   const netProfit = grossProfit - expenseTotal;
+  const cashOnHand = revenue - expenseTotal - stockTotal;
   const pieces = monthSales.reduce((sum, sale) => sum + sale.quantity, 0);
 
   const sellerRanking = useMemo(() => {
@@ -169,6 +170,7 @@ export default function ReportsPage({
         const expenseTotal = dayExpenses
           .filter((expense) => !isStockPurchase(expense))
           .reduce((sum, expense) => sum + expense.amount, 0);
+        const stockTotal = dayExpenses.filter(isStockPurchase).reduce((sum, expense) => sum + expense.amount, 0);
         const pieces = daySales.reduce((sum, sale) => sum + sale.quantity, 0);
         const parts = dayParts(date);
         return {
@@ -180,7 +182,9 @@ export default function ReportsPage({
           revenue,
           profit,
           expenses: expenseTotal,
+          stock: stockTotal,
           net: profit - expenseTotal,
+          cash: revenue - expenseTotal - stockTotal,
           active: daySales.length > 0 || dayExpenses.length > 0,
         };
       })
@@ -312,6 +316,19 @@ export default function ReportsPage({
         ))}
       </section>
 
+      <section className="mt-4 rounded-2xl border border-navy bg-navy p-4 text-white md:mt-5 md:p-5">
+        <p className="text-xs font-semibold text-brand">{t("reports.cashOnHand")}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums md:text-3xl">{fmt(cashOnHand)}</p>
+        <p className="mt-2 text-xs text-white/75">{t("reports.cashOnHandHint")}</p>
+        <p className="mt-1 text-[11px] text-white/55">
+          {t("reports.cashOnHandBreakdown", {
+            sales: fmt(revenue),
+            expenses: fmt(expenseTotal),
+            stock: fmt(stockTotal),
+          })}
+        </p>
+      </section>
+
       <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 md:mt-5 md:p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -355,7 +372,7 @@ export default function ReportsPage({
                         <p className="text-[11px] text-slate-500">
                           {t("reports.dailyOps", { count: row.ops })} · {t("reports.dailyPieces", { count: row.pieces })}
                         </p>
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
                           <div className="rounded-xl bg-white p-2">
                             <p className="text-[10px] text-slate-500">{t("reports.dailyRevenue")}</p>
                             <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-navy">{fmt(row.revenue)}</p>
@@ -373,6 +390,12 @@ export default function ReportsPage({
                             <p className="text-[10px] text-slate-500">{t("reports.dailyNet")}</p>
                             <p className={`mt-0.5 truncate text-sm font-bold tabular-nums ${row.net >= 0 ? "text-emerald-700" : "text-coral-dark"}`}>
                               {fmt(row.net)}
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2">
+                            <p className="text-[10px] text-slate-500">{t("reports.dailyCash")}</p>
+                            <p className={`mt-0.5 truncate text-sm font-bold tabular-nums ${row.cash >= 0 ? "text-navy" : "text-coral-dark"}`}>
+                              {fmt(row.cash)}
                             </p>
                           </div>
                         </div>
