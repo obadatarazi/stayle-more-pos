@@ -12,12 +12,16 @@ export default function QuickSaleSheet({
   products,
   soldBySku,
   initialSku,
+  saleDate,
+  setSaleDate,
   onClose,
   onCheckout,
 }: {
   products: Product[];
   soldBySku: Record<string, number>;
   initialSku?: string;
+  saleDate: string;
+  setSaleDate: (date: string) => void;
   onClose: () => void;
   onCheckout: (lines: CartLine[]) => void;
 }) {
@@ -203,7 +207,16 @@ export default function QuickSaleSheet({
             </button>
           </div>
 
-          <div className="px-3 sm:px-4">
+          <div className="space-y-2 px-3 sm:px-4">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-bold text-slate-500">{t("sales.date")}</span>
+              <input
+                type="date"
+                className={`${inputClass} min-h-11 py-2`}
+                value={saleDate}
+                onChange={(event) => setSaleDate(event.target.value)}
+              />
+            </label>
             <div className="relative">
               <Icon name="search" className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
