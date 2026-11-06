@@ -454,6 +454,13 @@ export default function App() {
     enqueue({ type: "product.upsert", product });
   };
 
+  const saveProductPrice = (product: Product) => {
+    freezeLegacySales([product]);
+    setProducts((current) => current.map((item) => (item.sku === product.sku ? product : item)));
+    showNotice(t("notices.priceSaved", { name: product.nameAr, price: money(product.price) }));
+    enqueue({ type: "product.upsert", product });
+  };
+
   const toggleQuickSale = (sku: string) => {
     const current = products.find((item) => item.sku === sku);
     if (!current) return;
@@ -1105,6 +1112,7 @@ export default function App() {
               onEdit={(product) => setProductModal(product)}
               onToggleQuickSale={toggleQuickSale}
               onBulkUpdate={bulkUpdateProducts}
+              onSavePrice={saveProductPrice}
               usdRate={settings.usdRate}
               initialSearch={searchQuery}
             />

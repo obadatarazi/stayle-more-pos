@@ -185,6 +185,7 @@
     "description": "Add and edit products, and enable Quick sale for bestsellers.",
     "add": "Add",
     "adjustPrices": "Adjust prices",
+    "fastPrice": "Fast price edit",
     "searchPlaceholder": "Search by name or category...",
     "filterCategory": "Filter by category",
     "filterStatus": "Filter by status",
@@ -442,6 +443,18 @@
     "saveProduct": "Save product",
     "saveEdits": "Save changes"
   },
+  "fastPrice": {
+    "title": "Fast price edit",
+    "subtitle": "Search a product and change its selling price",
+    "searchPlaceholder": "Search by name or category...",
+    "sellingPrice": "Selling price",
+    "save": "Save",
+    "cost": "Cost {amount}",
+    "currentProfit": "Current profit {profit}",
+    "profitPreview": "From {old} to {next} · profit {profit}",
+    "noResults": "No results for this search.",
+    "emptyHint": "Search for a product, or enable Quick sale to list it here."
+  },
   "priceAdjust": {
     "title": "Adjust sale prices",
     "subtitle": "Raise or lower prices for multiple products at once",
@@ -462,6 +475,7 @@
   },
   "notices": {
     "productUpdated": "Product “{name}” updated.",
+    "priceSaved": "Saved price for “{name}” → {price}.",
     "quickSaleAdded": "“{name}” added to quick sale.",
     "quickSaleRemoved": "“{name}” removed from quick sale.",
     "expenseUpdated": "Expense updated.",

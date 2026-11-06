@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/Button";
+import FastPriceSheet from "@/components/FastPriceSheet";
 import PriceAdjustModal from "@/components/PriceAdjustModal";
 import Icon from "@/components/Icon";
 import PageIntro from "@/components/PageIntro";
@@ -16,6 +17,7 @@ export default function ProductsPage({
   onEdit,
   onToggleQuickSale,
   onBulkUpdate,
+  onSavePrice,
   usdRate,
   initialSearch = "",
 }: {
@@ -26,6 +28,7 @@ export default function ProductsPage({
   onEdit: (product: Product) => void;
   onToggleQuickSale: (sku: string) => void;
   onBulkUpdate: (updated: Product[]) => void;
+  onSavePrice: (product: Product) => void;
   usdRate: number;
   initialSearch?: string;
 }) {
@@ -37,6 +40,7 @@ export default function ProductsPage({
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [fastPriceSku, setFastPriceSku] = useState<string | null>(null);
   const categories = useMemo(() => allCategories(products), [products]);
   const productIndex = useMemo(
     () => new Map(products.map((product, index) => [product.sku, index])),
@@ -166,6 +170,7 @@ export default function ProductsPage({
         action={
           <>
             <Button className="flex-1 sm:flex-none" onClick={onAdd}><Icon name="plus" className="size-4" /> {t("products.add")}</Button>
+            <Button className="flex-1 sm:flex-none" variant="secondary" onClick={() => setFastPriceSku("")}><Icon name="cash" className="size-4" /> {t("products.fastPrice")}</Button>
             <Button className="flex-1 sm:flex-none" variant="secondary" onClick={() => setPriceModalOpen(true)}><Icon name="edit" className="size-4" /> {t("products.adjustPrices")}</Button>
             <Button className="flex-1 sm:flex-none" variant="secondary" onClick={() => products[0] && onSale(products[0].sku)}>{t("common.sell")}</Button>
           </>
@@ -304,10 +309,15 @@ export default function ProductsPage({
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-slate-50 p-2">
+                  <button
+                    type="button"
+                    className="rounded-xl bg-slate-50 p-2 text-center transition hover:bg-brand/40 active:scale-[0.98]"
+                    onClick={() => setFastPriceSku(product.sku)}
+                    aria-label={t("products.fastPrice")}
+                  >
                     <p className="text-[10px] text-slate-400">{t("export.price")}</p>
-                    <p className="text-sm font-bold text-slate-800">{money(product.price)}</p>
-                  </div>
+                    <p className="text-sm font-bold text-navy">{money(product.price)}</p>
+                  </button>
                   <div className="rounded-xl bg-slate-50 p-2">
                     <p className="text-[10px] text-slate-400">{t("products.remainingLabel")}</p>
                     <p className={`text-sm font-bold ${needsReorder ? "text-coral-dark" : "text-slate-800"}`}>{remaining}</p>
@@ -365,7 +375,16 @@ export default function ProductsPage({
                     </td>
                     <td className="px-4 py-4 text-sm text-slate-600" dir="ltr">{product.costUsd > 0 ? usd(product.costUsd) : "—"}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">{money(product.cost)}</td>
-                    <td className="px-4 py-4 text-sm font-semibold text-slate-800">{money(product.price)}</td>
+                    <td className="px-4 py-4">
+                      <button
+                        type="button"
+                        className="rounded-lg px-2 py-1 text-sm font-semibold text-navy hover:bg-brand"
+                        onClick={() => setFastPriceSku(product.sku)}
+                        title={t("products.fastPrice")}
+                      >
+                        {money(product.price)}
+                      </button>
+                    </td>
                     <td className="px-4 py-4 text-sm font-bold text-emerald-700">{money(product.price - product.cost)}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">{product.initialStock}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">{sold}</td>
@@ -424,6 +443,17 @@ export default function ProductsPage({
             onBulkUpdate(updated);
             setPriceModalOpen(false);
             setSelected(new Set());
+          }}
+        />
+      )}
+
+      {fastPriceSku !== null && (
+        <FastPriceSheet
+          products={products}
+          initialSku={fastPriceSku || undefined}
+          onClose={() => setFastPriceSku(null)}
+          onSave={(product) => {
+            onSavePrice(product);
           }}
         />
       )}

@@ -185,6 +185,7 @@
     "description": "أضف المنتجات وعدّلها، وفعّل «بيع سريع» للمنتجات الأكثر مبيعاً.",
     "add": "إضافة",
     "adjustPrices": "تعديل الأسعار",
+    "fastPrice": "تعديل السعر سريعاً",
     "searchPlaceholder": "بحث بالاسم أو الفئة...",
     "filterCategory": "تصفية حسب الفئة",
     "filterStatus": "تصفية حسب الحالة",
@@ -442,6 +443,18 @@
     "saveProduct": "حفظ المنتج",
     "saveEdits": "حفظ التعديلات"
   },
+  "fastPrice": {
+    "title": "تعديل السعر سريعاً",
+    "subtitle": "ابحث عن منتج وغيّر سعر البيع مباشرة",
+    "searchPlaceholder": "ابحث بالاسم أو الفئة...",
+    "sellingPrice": "سعر البيع",
+    "save": "حفظ",
+    "cost": "التكلفة {amount}",
+    "currentProfit": "الربح الحالي {profit}",
+    "profitPreview": "من {old} إلى {next} · ربح {profit}",
+    "noResults": "لا نتائج لهذا البحث.",
+    "emptyHint": "ابحث عن منتج لتعديل سعره، أو فعّل بيع سريع لظهوره هنا."
+  },
   "priceAdjust": {
     "title": "تعديل أسعار البيع",
     "subtitle": "زيادة أو تخفيض السعر لعدة منتجات دفعة واحدة",
@@ -462,6 +475,7 @@
   },
   "notices": {
     "productUpdated": "تم تحديث المنتج «{name}» بنجاح.",
+    "priceSaved": "تم حفظ سعر «{name}» → {price}.",
     "quickSaleAdded": "تمت إضافة «{name}» إلى البيع السريع.",
     "quickSaleRemoved": "تمت إزالة «{name}» من البيع السريع.",
     "expenseUpdated": "تم تحديث المصروف بنجاح.",
