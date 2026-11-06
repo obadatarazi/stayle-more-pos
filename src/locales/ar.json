@@ -324,7 +324,7 @@
   "reports": {
     "eyebrow": "التحليل الشهري",
     "title": "التقارير",
-    "description": "مبيعات الشهر، المصاريف، الإيجار، الأكثر مبيعاً، ومن باع أكثر.",
+    "description": "مبيعات الشهر، تقرير يوم بيوم، المصاريف، الإيجار، الأكثر مبيعاً، ومن باع أكثر.",
     "exportUsd": "تصدير التقرير بالدولار",
     "exportMonth": "تصدير تقرير الشهر",
     "pickMonth": "اختر الشهر لعرض الملخص الكامل",
@@ -356,7 +356,19 @@
     "sellerRankingHint": "من باع أكثر خلال الشهر",
     "expenseBreakdownTitle": "تفصيل المصاريف",
     "expenseBreakdownHint": "الإيجار والرواتب وباقي البنود",
-    "noExpensesThisMonth": "لا مصاريف مسجّلة لهذا الشهر."
+    "noExpensesThisMonth": "لا مصاريف مسجّلة لهذا الشهر.",
+    "dailyTitle": "تقرير يوم بيوم",
+    "dailyHint": "المبيعات والربح والمصاريف لكل يوم من أيام الشهر",
+    "dailyShowQuiet": "إظهار الأيام الهادئة",
+    "dailyHideQuiet": "إخفاء الأيام الهادئة",
+    "dailyQuiet": "بدون حركة",
+    "dailyPieces": "{count} قطعة",
+    "dailyOps": "{count} عملية",
+    "dailyRevenue": "المبيعات",
+    "dailyProfit": "الربح",
+    "dailyExpenses": "المصاريف",
+    "dailyNet": "الصافي",
+    "dailyEmpty": "لا توجد أيام فيها حركة في هذا الشهر بعد."
   },
   "settings": {
     "eyebrow": "إعدادات المتجر",

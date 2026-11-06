@@ -35,6 +35,41 @@ export const shortDate = (date: string) => {
       }).format(parsed);
 };
 
+/** Full day line for reports: weekday + day + month, e.g. "الجمعة · 6 نوفمبر". */
+export const dayLabel = (date: string) => {
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  const weekday = new Intl.DateTimeFormat("ar-EG-u-nu-latn", { weekday: "long" }).format(parsed);
+  const dayMonth = new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
+    day: "numeric",
+    month: "long",
+  }).format(parsed);
+  return `${weekday} · ${dayMonth}`;
+};
+
+/** Split parts for day-by-day cards: weekday + "6 نوفمبر". */
+export const dayParts = (date: string) => {
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return { weekday: date, dayMonth: "" };
+  return {
+    weekday: new Intl.DateTimeFormat("ar-EG-u-nu-latn", { weekday: "long" }).format(parsed),
+    dayMonth: new Intl.DateTimeFormat("ar-EG-u-nu-latn", {
+      day: "numeric",
+      month: "long",
+    }).format(parsed),
+  };
+};
+
+/** Every ISO date (YYYY-MM-DD) in a YYYY-MM month, ascending. */
+export const datesInMonth = (ym: string): string[] => {
+  const match = /^(\d{4})-(\d{2})$/.exec(ym);
+  if (!match) return [];
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const last = new Date(year, month, 0).getDate();
+  return Array.from({ length: last }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`);
+};
+
 export const monthKey = (date: string) => String(date || "").slice(0, 7);
 
 export const formatMonthLabel = (ym: string) => {

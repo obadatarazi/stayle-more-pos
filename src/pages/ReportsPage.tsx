@@ -6,6 +6,8 @@ import PageIntro from "@/components/PageIntro";
 import { useI18n } from "@/i18n/useI18n";
 import {
   currentMonthKey,
+  datesInMonth,
+  dayParts,
   formatMonthLabel,
   isRentExpense,
   isStockPurchase,
@@ -13,6 +15,7 @@ import {
   monthKey,
   saleCost,
   salePrice,
+  todayISO,
   usd,
 } from "@/lib/format";
 import { accounts } from "@/data/demo";
@@ -38,8 +41,10 @@ export default function ReportsPage({
   const { t } = useI18n();
   const [rateInput, setRateInput] = useState(defaultUsdRate ? String(defaultUsdRate) : "");
   const [usdView, setUsdView] = useState<number | null>(null);
+  const [showQuietDays, setShowQuietDays] = useState(false);
   const fmt = (amount: number) => (usdView ? usd(amount / usdView) : money(amount));
   const parsedRate = Number(rateInput);
+  const today = todayISO();
 
   const availableMonths = useMemo(() => {
     const keys = new Set<string>();
@@ -145,6 +150,44 @@ export default function ReportsPage({
       }))
       .sort((a, b) => b.amount - a.amount);
   }, [monthExpenses]);
+
+  const dailyRows = useMemo(() => {
+    const productBySku = new Map(products.map((product) => [product.sku, product]));
+    return datesInMonth(month)
+      .map((date) => {
+        const daySales = monthSales.filter((sale) => sale.date === date);
+        const dayExpenses = monthExpenses.filter((expense) => expense.dueDate === date);
+        const revenue = daySales.reduce((sum, sale) => {
+          const product = productBySku.get(sale.sku);
+          return sum + salePrice(sale, product) * sale.quantity;
+        }, 0);
+        const profit = daySales.reduce((sum, sale) => {
+          const product = productBySku.get(sale.sku);
+          return sum + (salePrice(sale, product) - saleCost(sale, product)) * sale.quantity;
+        }, 0);
+        const expenseTotal = dayExpenses
+          .filter((expense) => !isStockPurchase(expense))
+          .reduce((sum, expense) => sum + expense.amount, 0);
+        const pieces = daySales.reduce((sum, sale) => sum + sale.quantity, 0);
+        const parts = dayParts(date);
+        return {
+          date,
+          weekday: parts.weekday,
+          dayMonth: parts.dayMonth,
+          ops: daySales.length,
+          pieces,
+          revenue,
+          profit,
+          expenses: expenseTotal,
+          net: profit - expenseTotal,
+          active: daySales.length > 0 || dayExpenses.length > 0,
+        };
+      })
+      .reverse();
+  }, [month, monthSales, monthExpenses, products]);
+
+  const visibleDailyRows = showQuietDays ? dailyRows : dailyRows.filter((row) => row.active);
+  const maxDailyRevenue = Math.max(...dailyRows.map((row) => row.revenue), 1);
 
   const maxProductQty = topProducts[0]?.qty || 1;
   const maxExpense = expenseBreakdown[0]?.amount || 1;
@@ -264,6 +307,89 @@ export default function ReportsPage({
             <p className="mt-1 truncate text-[11px] text-slate-400">{card.hint}</p>
           </div>
         ))}
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 md:mt-5 md:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-slate-900">{t("reports.dailyTitle")}</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {formatMonthLabel(month)} · {t("reports.dailyHint")}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full shrink-0 sm:w-auto"
+            onClick={() => setShowQuietDays((value) => !value)}
+          >
+            <Icon name="calendar" className="size-4" />
+            {showQuietDays ? t("reports.dailyHideQuiet") : t("reports.dailyShowQuiet")}
+          </Button>
+        </div>
+
+        {visibleDailyRows.length ? (
+          <div className="space-y-3">
+            {visibleDailyRows.map((row) => (
+              <div
+                key={row.date}
+                className={`rounded-2xl border p-3 md:p-4 ${
+                  row.date === today
+                    ? "border-navy/25 bg-navy/[0.03]"
+                    : row.active
+                      ? "border-slate-100 bg-slate-50/70"
+                      : "border-slate-100 bg-white"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`grid min-w-16 shrink-0 place-items-center rounded-2xl px-2 py-2 text-center ${row.active ? "bg-navy text-white" : "bg-slate-100 text-slate-500"}`}>
+                    <span className="text-[10px] font-semibold opacity-80">{row.weekday}</span>
+                    <span className="mt-0.5 text-sm font-bold leading-tight">{row.dayMonth}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {row.active ? (
+                      <>
+                        <p className="text-[11px] text-slate-500">
+                          {t("reports.dailyOps", { count: row.ops })} · {t("reports.dailyPieces", { count: row.pieces })}
+                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div className="rounded-xl bg-white p-2">
+                            <p className="text-[10px] text-slate-500">{t("reports.dailyRevenue")}</p>
+                            <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-navy">{fmt(row.revenue)}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2">
+                            <p className="text-[10px] text-slate-500">{t("reports.dailyProfit")}</p>
+                            <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-emerald-700">{fmt(row.profit)}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2">
+                            <p className="text-[10px] text-slate-500">{t("reports.dailyExpenses")}</p>
+                            <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-slate-800">{fmt(row.expenses)}</p>
+                          </div>
+                          <div className="rounded-xl bg-white p-2">
+                            <p className="text-[10px] text-slate-500">{t("reports.dailyNet")}</p>
+                            <p className={`mt-0.5 truncate text-sm font-bold tabular-nums ${row.net >= 0 ? "text-emerald-700" : "text-coral-dark"}`}>
+                              {fmt(row.net)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+                          <div
+                            className="h-full rounded-full bg-navy/80"
+                            style={{ width: `${Math.max(row.revenue > 0 ? 8 : 0, (row.revenue / maxDailyRevenue) * 100)}%` }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="pt-2 text-sm text-slate-400">{t("reports.dailyQuiet")}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="py-8 text-center text-sm text-slate-500">{t("reports.dailyEmpty")}</p>
+        )}
       </section>
 
       <section className="mt-4 grid gap-4 lg:grid-cols-2 md:mt-5">

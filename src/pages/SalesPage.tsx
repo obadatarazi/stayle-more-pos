@@ -1,11 +1,9 @@
-import { FormEvent, useMemo } from "react";
+import { useMemo } from "react";
 import Button from "@/components/Button";
-import ChangeCalculator from "@/components/ChangeCalculator";
 import SalesList from "@/components/SalesList";
 import FieldLabel, { inputClass } from "@/components/FieldLabel";
 import Icon from "@/components/Icon";
 import PageIntro from "@/components/PageIntro";
-import Stepper from "@/components/Stepper";
 import { accounts } from "@/data/demo";
 import { useI18n } from "@/i18n/useI18n";
 import { money, saleCost, salePrice } from "@/lib/format";
@@ -14,17 +12,6 @@ import type { Product, Sale } from "@/types/store";
 export default function SalesPage({
   sales,
   products,
-  selectedSku,
-  setSelectedSku,
-  quantity,
-  setQuantity,
-  unitPrice,
-  setUnitPrice,
-  saleDate,
-  setSaleDate,
-  selectedProduct,
-  selectedRemaining,
-  onSubmit,
   onDeleteSale,
   onQuickSale,
   sellerFilter,
@@ -33,17 +20,6 @@ export default function SalesPage({
 }: {
   sales: Sale[];
   products: Product[];
-  selectedSku: string;
-  setSelectedSku: (sku: string) => void;
-  quantity: number;
-  setQuantity: (quantity: number) => void;
-  unitPrice: number;
-  setUnitPrice: (price: number) => void;
-  saleDate: string;
-  setSaleDate: (date: string) => void;
-  selectedProduct: Product;
-  selectedRemaining: number;
-  onSubmit: (event: FormEvent) => void;
   onDeleteSale: (id: number) => void;
   onQuickSale: () => void;
   sellerFilter: string;
@@ -51,9 +27,6 @@ export default function SalesPage({
   onExport: () => void;
 }) {
   const { t } = useI18n();
-  const total = quantity * unitPrice;
-  const profit = quantity * (unitPrice - selectedProduct.cost);
-  const priceChanged = unitPrice !== selectedProduct.price;
 
   const filteredSales = useMemo(() => {
     if (sellerFilter === "all") return sales;
@@ -144,73 +117,19 @@ export default function SalesPage({
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr] md:gap-5">
-        <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-4 md:p-6">
-          <div className="mb-5 flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-brand text-navy"><Icon name="receipt" /></span>
-            <div><h2 className="font-bold text-slate-900">{t("sales.newSale")}</h2><p className="text-xs text-slate-500">{t("sales.orUsePlus")}</p></div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 md:px-6 md:py-5">
+          <div>
+            <h2 className="font-bold text-slate-900">{t("sales.logTitle")}</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {sellerLogLabel}
+              {" · "}
+              {t("sales.opsCount", { count: filteredSales.length })}
+            </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 md:gap-5">
-            <label>
-              <FieldLabel>{t("sales.date")}</FieldLabel>
-              <input type="date" className={inputClass} value={saleDate} onChange={(event) => setSaleDate(event.target.value)} required />
-            </label>
-            <label>
-              <FieldLabel>{t("export.itemName")}</FieldLabel>
-              <select className={inputClass} value={selectedSku} onChange={(event) => setSelectedSku(event.target.value)}>
-                {products.map((product) => (
-                  <option key={product.sku} value={product.sku}>{product.nameAr}</option>
-                ))}
-              </select>
-            </label>
-            <div>
-              <FieldLabel>{t("export.soldQty")}</FieldLabel>
-              <Stepper value={quantity} min={1} max={Math.max(1, selectedRemaining)} onChange={setQuantity} />
-              <span className="mt-2 block text-xs text-slate-400">{t("sales.availableHint", { count: selectedRemaining })}</span>
-            </div>
-            <label>
-              <FieldLabel>{t("export.unitPrice")}</FieldLabel>
-              <input type="number" min="0" step="0.01" className={inputClass} value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} required />
-              <span className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-400">
-                <span>{t("sales.defaultPrice", { price: money(selectedProduct.price) })}</span>
-                {priceChanged && (
-                  <button type="button" className="font-bold text-navy" onClick={() => setUnitPrice(selectedProduct.price)}>{t("sales.restore")}</button>
-                )}
-              </span>
-            </label>
-          </div>
-          <div className="my-5 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">{t("sales.income")}</p>
-              <p className="mt-1 text-xl font-bold text-slate-950">{money(total)}</p>
-            </div>
-            <div className="border-r border-slate-200 pr-4">
-              <p className="text-xs font-semibold text-slate-500">{t("sales.profit")}</p>
-              <p className="mt-1 text-xl font-bold text-emerald-700">{money(profit)}</p>
-            </div>
-          </div>
-          <div className="mb-4">
-            <ChangeCalculator total={total} />
-          </div>
-          <Button className="w-full min-h-12" type="submit" disabled={selectedRemaining < 1 || quantity > selectedRemaining || unitPrice < 0}>
-            <Icon name="plus" className="size-4" /> {t("sales.confirmSale")}
-          </Button>
-        </form>
-
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 md:px-6 md:py-5">
-            <div>
-              <h2 className="font-bold text-slate-900">{t("sales.logTitle")}</h2>
-              <p className="mt-1 text-xs text-slate-500">
-                {sellerLogLabel}
-                {" · "}
-                {t("sales.opsCount", { count: filteredSales.length })}
-              </p>
-            </div>
-            <Button variant="ghost" className="min-h-10 px-2" onClick={onExport}>{t("sales.exportExcel")}</Button>
-          </div>
-          <SalesList sales={filteredSales} products={products} onDelete={onDeleteSale} />
+          <Button variant="ghost" className="min-h-10 px-2" onClick={onExport}>{t("sales.exportExcel")}</Button>
         </div>
+        <SalesList sales={filteredSales} products={products} onDelete={onDeleteSale} />
       </div>
     </>
   );

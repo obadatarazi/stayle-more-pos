@@ -324,7 +324,7 @@
   "reports": {
     "eyebrow": "Monthly analysis",
     "title": "Reports",
-    "description": "Month sales, expenses, rent, bestsellers, and top sellers.",
+    "description": "Month sales, day-by-day breakdown, expenses, rent, bestsellers, and top sellers.",
     "exportUsd": "Export report in USD",
     "exportMonth": "Export month report",
     "pickMonth": "Pick a month to see the full summary",
@@ -356,7 +356,19 @@
     "sellerRankingHint": "Who sold the most this month",
     "expenseBreakdownTitle": "Expense breakdown",
     "expenseBreakdownHint": "Rent, salaries, and other items",
-    "noExpensesThisMonth": "No expenses logged for this month."
+    "noExpensesThisMonth": "No expenses logged for this month.",
+    "dailyTitle": "Day by day",
+    "dailyHint": "Sales, profit, and expenses for each day this month",
+    "dailyShowQuiet": "Show quiet days",
+    "dailyHideQuiet": "Hide quiet days",
+    "dailyQuiet": "No activity",
+    "dailyPieces": "{count} pcs",
+    "dailyOps": "{count} sales",
+    "dailyRevenue": "Sales",
+    "dailyProfit": "Profit",
+    "dailyExpenses": "Expenses",
+    "dailyNet": "Net",
+    "dailyEmpty": "No days with activity this month yet."
   },
   "settings": {
     "eyebrow": "Store settings",

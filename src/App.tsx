@@ -16,6 +16,8 @@ import {
   cellValue,
   costFromUsd,
   currentMonthKey,
+  datesInMonth,
+  dayLabel,
   excelDate,
   formatMonthLabel,
   isRentExpense,
@@ -296,27 +298,6 @@ export default function App() {
     );
   }
 
-  const recordSale = () => {
-    if (!selectedProduct || quantity < 1 || quantity > selectedRemaining || unitPrice < 0) return false;
-    const sale: Sale = {
-      id: createRecordId(),
-      date: saleDate,
-      sku: selectedSku,
-      quantity,
-      unitPrice,
-      unitCost: selectedProduct.cost,
-      unitCostUsd: selectedProduct.costUsd,
-      soldBy: authUser.username,
-      soldByName: authUser.displayName,
-    };
-    setSales((current) => [sale, ...current]);
-    showNotice(t("notices.saleAdded", { qty: quantity, name: selectedProduct.nameAr }));
-    setQuantity(1);
-    setUnitPrice(selectedProduct.price);
-    enqueue({ type: "sale.upsert", sale });
-    return true;
-  };
-
   const checkoutCart = (lines: CartLine[]) => {
     if (!lines.length) return false;
 
@@ -357,11 +338,6 @@ export default function App() {
     setQuantity(1);
     enqueue(...newSales.map((sale) => ({ type: "sale.upsert" as const, sale })));
     return true;
-  };
-
-  const addSale = (event: FormEvent) => {
-    event.preventDefault();
-    recordSale();
   };
 
   const openQuickSale = (sku?: string) => {
@@ -697,6 +673,7 @@ export default function App() {
       const price = salePrice(sale, product);
       return {
         "التاريخ": sale.date,
+        "اليوم": dayLabel(sale.date),
         "اسم المادة": product?.nameAr || sale.sku,
         "الكمية": sale.quantity,
         "سعر القطعة": conv(price),
@@ -757,9 +734,36 @@ export default function App() {
       "البند": expense.categoryAr,
       "المبلغ": conv(expense.amount),
       "التاريخ": expense.dueDate,
+      "اليوم": dayLabel(expense.dueDate),
       "ملاحظة": expense.note || "",
       "نوع": isRentExpense(expense) ? "إيجار" : isStockPurchase(expense) ? "شراء بضاعة (لا يُخصم من الربح)" : "مصروف",
     }));
+
+    const dailyRows = datesInMonth(month).map((date) => {
+      const daySales = monthSales.filter((sale) => sale.date === date);
+      const dayExpenses = monthExpenses.filter((expense) => expense.dueDate === date);
+      const dayRevenue = daySales.reduce((sum, sale) => {
+        const product = products.find((item) => item.sku === sale.sku);
+        return sum + salePrice(sale, product) * sale.quantity;
+      }, 0);
+      const dayProfit = daySales.reduce((sum, sale) => {
+        const product = products.find((item) => item.sku === sale.sku);
+        return sum + (salePrice(sale, product) - saleCost(sale, product)) * sale.quantity;
+      }, 0);
+      const dayExpenseTotal = dayExpenses
+        .filter((expense) => !isStockPurchase(expense))
+        .reduce((sum, expense) => sum + expense.amount, 0);
+      return {
+        "التاريخ": date,
+        "اليوم": dayLabel(date),
+        "عدد العمليات": daySales.length,
+        "القطع": daySales.reduce((sum, sale) => sum + sale.quantity, 0),
+        "المبيعات": conv(dayRevenue),
+        "الربح": conv(dayProfit),
+        "المصاريف": conv(dayExpenseTotal),
+        "الصافي": conv(Math.round((dayProfit - dayExpenseTotal) * 100) / 100),
+      };
+    });
 
     const revenue = saleRows.reduce((sum, row) => sum + Number(row["الإيراد"]), 0);
     const profit = saleRows.reduce((sum, row) => sum + Number(row["الربح"]), 0);
@@ -783,6 +787,7 @@ export default function App() {
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "ملخص الشهر");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(dailyRows), "يوم بيوم");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(topProducts), "الأكثر مبيعاً");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sellerRows), "البائعون");
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(saleRows), "المبيعات");
@@ -1104,20 +1109,9 @@ export default function App() {
               initialSearch={searchQuery}
             />
           )}
-          {activeTab === "sales" && selectedProduct && (
+          {activeTab === "sales" && (
             <SalesPage
               sales={sales}
-              selectedSku={selectedSku}
-              setSelectedSku={setSelectedSku}
-              quantity={quantity}
-              setQuantity={setQuantity}
-              unitPrice={unitPrice}
-              setUnitPrice={setUnitPrice}
-              saleDate={saleDate}
-              setSaleDate={setSaleDate}
-              selectedProduct={selectedProduct}
-              selectedRemaining={selectedRemaining}
-              onSubmit={addSale}
               onDeleteSale={requestDeleteSale}
               onQuickSale={() => openQuickSale()}
               products={products}
