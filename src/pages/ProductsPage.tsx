@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import PageIntro from "@/components/PageIntro";
 import { allCategories } from "@/data/demo";
 import { useI18n } from "@/i18n/useI18n";
-import { money, usd } from "@/lib/format";
+import { formatMargin, money, usd } from "@/lib/format";
 import type { Product, ProductSort, StockFilter } from "@/types/store";
 
 export default function ProductsPage({
@@ -77,6 +77,7 @@ export default function ProductsPage({
       t("export.cost"),
       t("export.price"),
       t("export.unitProfit"),
+      t("export.margin"),
       t("export.initialStock"),
       t("export.soldQty"),
       t("export.currentStock"),
@@ -325,6 +326,9 @@ export default function ProductsPage({
                   <div className="rounded-xl bg-slate-50 p-2">
                     <p className="text-[10px] text-slate-400">{t("sales.profit")}</p>
                     <p className="text-sm font-bold text-emerald-700">{money(product.price - product.cost)}</p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">
+                      {formatMargin(product.price - product.cost, product.price)}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
@@ -386,6 +390,9 @@ export default function ProductsPage({
                       </button>
                     </td>
                     <td className="px-4 py-4 text-sm font-bold text-emerald-700">{money(product.price - product.cost)}</td>
+                    <td className="px-4 py-4 text-sm font-semibold tabular-nums text-navy">
+                      {formatMargin(product.price - product.cost, product.price)}
+                    </td>
                     <td className="px-4 py-4 text-sm text-slate-600">{product.initialStock}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">{sold}</td>
                     <td className={`px-4 py-4 text-sm font-bold ${needsReorder ? "text-coral-dark" : "text-slate-800"}`}>{remaining}</td>
@@ -425,7 +432,7 @@ export default function ProductsPage({
                 );
               }) : (
                 <tr>
-                  <td colSpan={12} className="px-4 py-12 text-center text-sm text-slate-500">{t("products.noMatchSearch")}</td>
+                  <td colSpan={13} className="px-4 py-12 text-center text-sm text-slate-500">{t("products.noMatchSearch")}</td>
                 </tr>
               )}
             </tbody>

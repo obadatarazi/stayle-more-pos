@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import PageIntro from "@/components/PageIntro";
 import { accounts } from "@/data/demo";
 import { useI18n } from "@/i18n/useI18n";
-import { money, saleCost, salePrice } from "@/lib/format";
+import { formatMargin, money, saleCost, salePrice } from "@/lib/format";
 import type { Product, Sale } from "@/types/store";
 
 export default function SalesPage({
@@ -97,7 +97,7 @@ export default function SalesPage({
             </select>
           </label>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-[11px] font-semibold text-slate-500">{t("sales.ops")}</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">{sellerStats.count}</p>
@@ -113,6 +113,12 @@ export default function SalesPage({
           <div className="rounded-2xl bg-emerald-50 p-3">
             <p className="text-[11px] font-semibold text-slate-500">{t("sales.netProfit")}</p>
             <p className="mt-1 text-lg font-bold tabular-nums text-emerald-700">{money(sellerStats.net)}</p>
+          </div>
+          <div className="col-span-2 rounded-2xl bg-navy/5 p-3 md:col-span-1">
+            <p className="text-[11px] font-semibold text-slate-500">{t("sales.margin")}</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-navy">
+              {formatMargin(sellerStats.net, sellerStats.revenue)}
+            </p>
           </div>
         </div>
       </section>

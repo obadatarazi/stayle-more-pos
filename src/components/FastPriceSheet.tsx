@@ -3,7 +3,7 @@ import Button from "@/components/Button";
 import { inputClass } from "@/components/FieldLabel";
 import Icon from "@/components/Icon";
 import { useI18n } from "@/i18n/useI18n";
-import { money } from "@/lib/format";
+import { formatMargin, money } from "@/lib/format";
 import type { Product } from "@/types/store";
 
 export default function FastPriceSheet({
@@ -190,6 +190,8 @@ export default function FastPriceSheet({
                           profit: money(profit),
                         })
                       : t("fastPrice.currentProfit", { profit: money(profit) })}
+                    {" · "}
+                    {formatMargin(profit, nextPrice)}
                   </p>
                 </div>
               );

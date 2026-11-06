@@ -8,6 +8,7 @@ import {
   currentMonthKey,
   datesInMonth,
   dayParts,
+  formatMargin,
   formatMonthLabel,
   isRentExpense,
   isStockPurchase,
@@ -201,6 +202,8 @@ export default function ReportsPage({
         })
       : t("reports.rentLine", { amount: fmt(rentTotal) });
 
+  const marginLabel = formatMargin(grossProfit, revenue);
+
   const metricCards = [
     {
       key: "monthSales",
@@ -213,7 +216,7 @@ export default function ReportsPage({
       key: "grossProfit",
       label: t("reports.grossProfit"),
       value: fmt(grossProfit),
-      hint: t("sales.opsCount", { count: monthSales.length }),
+      hint: t("reports.marginOfSales", { percent: marginLabel }),
       tone: "blue" as const,
     },
     {
@@ -360,6 +363,7 @@ export default function ReportsPage({
                           <div className="rounded-xl bg-white p-2">
                             <p className="text-[10px] text-slate-500">{t("reports.dailyProfit")}</p>
                             <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-emerald-700">{fmt(row.profit)}</p>
+                            <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{formatMargin(row.profit, row.revenue)}</p>
                           </div>
                           <div className="rounded-xl bg-white p-2">
                             <p className="text-[10px] text-slate-500">{t("reports.dailyExpenses")}</p>
@@ -415,6 +419,9 @@ export default function ReportsPage({
             <div className="min-w-0 rounded-xl bg-white/10 p-2 sm:p-3">
               <p className="text-[10px] text-brand">{t("sales.profit")}</p>
               <p className="mt-1 truncate text-xs font-bold tabular-nums sm:text-sm">{fmt(topSeller?.profit || 0)}</p>
+              <p className="mt-0.5 text-[10px] font-semibold text-brand">
+                {formatMargin(topSeller?.profit || 0, topSeller?.revenue || 0)}
+              </p>
             </div>
           </div>
         </div>
@@ -465,7 +472,9 @@ export default function ReportsPage({
                   </div>
                   <div className="shrink-0 text-left">
                     <p className="text-sm font-bold tabular-nums text-navy">{fmt(product.revenue)}</p>
-                    <p className="text-[11px] font-semibold text-emerald-600">+{fmt(product.profit)}</p>
+                    <p className="text-[11px] font-semibold text-emerald-600">
+                      +{fmt(product.profit)} · {formatMargin(product.profit, product.revenue)}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
@@ -497,6 +506,8 @@ export default function ReportsPage({
                     <p className="text-sm font-bold text-slate-900">{seller.displayName}</p>
                     <p className="text-[11px] text-slate-500">
                       {t("sales.opsCount", { count: seller.count })} · {t("quickSale.pieceCount", { count: seller.qty })}
+                      {" · "}
+                      {formatMargin(seller.profit, seller.revenue)}
                     </p>
                   </div>
                   <p className="text-sm font-bold tabular-nums text-navy">{fmt(seller.revenue)}</p>

@@ -1,6 +1,6 @@
 import Icon from "@/components/Icon";
 import { useI18n } from "@/i18n/useI18n";
-import { money, saleCost, salePrice, shortDate } from "@/lib/format";
+import { formatMargin, money, saleCost, salePrice, shortDate } from "@/lib/format";
 import type { Product, Sale } from "@/types/store";
 
 export default function SalesList({
@@ -24,6 +24,8 @@ export default function SalesList({
         const product = products.find((item) => item.sku === sale.sku);
         if (!product) return null;
         const price = salePrice(sale, product);
+        const lineRevenue = price * sale.quantity;
+        const lineProfit = (price - saleCost(sale, product)) * sale.quantity;
         return (
           <div key={sale.id} className="flex items-center gap-2.5 px-3 py-3.5 md:gap-3 md:px-6 md:py-4">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand text-navy">
@@ -38,9 +40,9 @@ export default function SalesList({
               </p>
             </div>
             <div className="shrink-0 text-left">
-              <p className="text-sm font-bold text-slate-900">{money(price * sale.quantity)}</p>
+              <p className="text-sm font-bold text-slate-900">{money(lineRevenue)}</p>
               <p className="mt-0.5 text-xs font-semibold text-emerald-600">
-                +{money((price - saleCost(sale, product)) * sale.quantity)}
+                +{money(lineProfit)} · {formatMargin(lineProfit, lineRevenue)}
               </p>
             </div>
             {onDelete && (

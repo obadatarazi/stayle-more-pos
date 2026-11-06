@@ -7,6 +7,14 @@ export const money = (amount: number) =>
     maximumFractionDigits: 0,
   }).format(amount);
 
+/** Profit ÷ revenue (or unit profit ÷ price), e.g. 7070 / 17910 → "39.5%". */
+export const formatMargin = (profit: number, revenue: number) => {
+  if (!(revenue > 0)) return "—";
+  const pct = (profit / revenue) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)}%`;
+};
+
 export const usd = (amount: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",

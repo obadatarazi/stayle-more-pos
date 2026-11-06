@@ -19,6 +19,7 @@ import {
   datesInMonth,
   dayLabel,
   excelDate,
+  formatMargin,
   formatMonthLabel,
   isRentExpense,
   isStockPurchase,
@@ -686,6 +687,10 @@ export default function App() {
         "سعر القطعة": conv(price),
         "الإيراد": conv(price * sale.quantity),
         "الربح": conv((price - saleCost(sale, product)) * sale.quantity),
+        "نسبة الربح": formatMargin(
+          (price - saleCost(sale, product)) * sale.quantity,
+          price * sale.quantity,
+        ),
         "البائع": sale.soldByName || sale.soldBy || "غير محدد",
       };
     });
@@ -767,6 +772,7 @@ export default function App() {
         "القطع": daySales.reduce((sum, sale) => sum + sale.quantity, 0),
         "المبيعات": conv(dayRevenue),
         "الربح": conv(dayProfit),
+        "نسبة الربح": formatMargin(dayProfit, dayRevenue),
         "المصاريف": conv(dayExpenseTotal),
         "الصافي": conv(Math.round((dayProfit - dayExpenseTotal) * 100) / 100),
       };
@@ -784,6 +790,7 @@ export default function App() {
       { "البند": "العملة", "القيمة": usdRate ? `دولار (سعر الصرف ${usdRate})` : "ليرة" },
       { "البند": "إجمالي المبيعات", "القيمة": revenue },
       { "البند": "أرباح البضاعة", "القيمة": profit },
+      { "البند": "نسبة الربح", "القيمة": formatMargin(profit, revenue) },
       { "البند": "إجمالي المصاريف", "القيمة": expenseTotal },
       { "البند": "شراء بضاعة (لا يُخصم من الربح)", "القيمة": stockTotal },
       { "البند": "الإيجار", "القيمة": rentTotal },
